@@ -26,3 +26,11 @@ impl Token {
         Self { kind, literal }
     }
 }
+
+pub fn lookup_ident(ident: &str) -> TokenKind {
+    match ident {
+        "fn" => TokenKind::Function,
+        "let" => TokenKind::Let,
+        _ => TokenKind::Ident
+    }
+}
