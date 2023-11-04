@@ -21,14 +21,30 @@ impl<'a> Lexer<'a> {
         self.skip_whitespace();
 
         let token = match self.ch {
-            Some('=') => Token::new(TokenKind::Assign, "=".to_string()),
+            Some('=') => {
+                match self.chars.peek() {
+                    Some('=') => {
+                        self.read_char();
+                        Token::new(TokenKind::Eq, "==".to_string())
+                    }
+                    _ => Token::new(TokenKind::Assign, "=".to_string())
+                }
+            }
             Some(';') => Token::new(TokenKind::Semicolon, ";".to_string()),
             Some('(') => Token::new(TokenKind::Lparen, "(".to_string()),
             Some(')') => Token::new(TokenKind::Rparen, ")".to_string()),
             Some(',') => Token::new(TokenKind::Comma, ",".to_string()),
             Some('+') => Token::new(TokenKind::Plus, "+".to_string()),
             Some('-') => Token::new(TokenKind::Minus, "-".to_string()),
-            Some('!') => Token::new(TokenKind::Bang, "!".to_string()),
+            Some('!') => {
+                match self.chars.peek() {
+                    Some('=') => {
+                        self.read_char();
+                        Token::new(TokenKind::Ne, "!=".to_string())
+                    }
+                    _ => Token::new(TokenKind::Bang, "!".to_string())
+                }
+            }
             Some('*') => Token::new(TokenKind::Asterisk, "*".to_string()),
             Some('/') => Token::new(TokenKind::Slash, "/".to_string()),
             Some('<') => Token::new(TokenKind::Lt, "<".to_string()),
@@ -175,6 +191,14 @@ mod tests {
             TestCase { expected_kind: TokenKind::False, expected_literal: "false" },
             TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
             TestCase { expected_kind: TokenKind::Rbrace, expected_literal: "}" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
+            TestCase { expected_kind: TokenKind::Eq, expected_literal: "==" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
+            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
+            TestCase { expected_kind: TokenKind::Ne, expected_literal: "!=" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "9" },
+            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
             TestCase { expected_kind: TokenKind::Eof, expected_literal: "" },
         ];
 
@@ -191,7 +215,9 @@ mod tests {
                 return true;
             } else {
                 return false;
-            }";
+            }
+            10 == 10;
+            10 != 9;";
         let mut lexer = Lexer::new(input);
 
         for (i, test) in tests.iter().enumerate() {

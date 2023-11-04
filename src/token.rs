@@ -10,6 +10,8 @@ pub enum TokenKind {
     Bang,
     Asterisk,
     Slash,
+    Eq,
+    Ne,
     Lt,
     Gt,
     Comma,
