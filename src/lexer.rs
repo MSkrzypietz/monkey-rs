@@ -158,6 +158,23 @@ mod tests {
             TestCase { expected_kind: TokenKind::Gt, expected_literal: ">" },
             TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
             TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
+            TestCase { expected_kind: TokenKind::If, expected_literal: "if" },
+            TestCase { expected_kind: TokenKind::Lparen, expected_literal: "(" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
+            TestCase { expected_kind: TokenKind::Lt, expected_literal: "<" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
+            TestCase { expected_kind: TokenKind::Rparen, expected_literal: ")" },
+            TestCase { expected_kind: TokenKind::Lbrace, expected_literal: "{" },
+            TestCase { expected_kind: TokenKind::Return, expected_literal: "return" },
+            TestCase { expected_kind: TokenKind::True, expected_literal: "true" },
+            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
+            TestCase { expected_kind: TokenKind::Rbrace, expected_literal: "}" },
+            TestCase { expected_kind: TokenKind::Else, expected_literal: "else" },
+            TestCase { expected_kind: TokenKind::Lbrace, expected_literal: "{" },
+            TestCase { expected_kind: TokenKind::Return, expected_literal: "return" },
+            TestCase { expected_kind: TokenKind::False, expected_literal: "false" },
+            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
+            TestCase { expected_kind: TokenKind::Rbrace, expected_literal: "}" },
             TestCase { expected_kind: TokenKind::Eof, expected_literal: "" },
         ];
 
@@ -169,7 +186,12 @@ mod tests {
             };
             let result = add(five, ten);
             !-/*5;
-            5 < 10 > 5;";
+            5 < 10 > 5;
+            if (5 < 10) {
+                return true;
+            } else {
+                return false;
+            }";
         let mut lexer = Lexer::new(input);
 
         for (i, test) in tests.iter().enumerate() {

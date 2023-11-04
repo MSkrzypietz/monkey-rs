@@ -20,6 +20,11 @@ pub enum TokenKind {
     Rbrace,
     Function,
     Let,
+    True,
+    False,
+    If,
+    Else,
+    Return
 }
 
 pub struct Token {
@@ -37,6 +42,11 @@ pub fn lookup_ident(ident: &str) -> TokenKind {
     match ident {
         "fn" => TokenKind::Function,
         "let" => TokenKind::Let,
+        "true" => TokenKind::True,
+        "false" => TokenKind::False,
+        "if" => TokenKind::If,
+        "else" => TokenKind::Else,
+        "return" => TokenKind::Return,
         _ => TokenKind::Ident
     }
 }
