@@ -27,6 +27,12 @@ impl<'a> Lexer<'a> {
             Some(')') => Token::new(TokenKind::Rparen, ")".to_string()),
             Some(',') => Token::new(TokenKind::Comma, ",".to_string()),
             Some('+') => Token::new(TokenKind::Plus, "+".to_string()),
+            Some('-') => Token::new(TokenKind::Minus, "-".to_string()),
+            Some('!') => Token::new(TokenKind::Bang, "!".to_string()),
+            Some('*') => Token::new(TokenKind::Asterisk, "*".to_string()),
+            Some('/') => Token::new(TokenKind::Slash, "/".to_string()),
+            Some('<') => Token::new(TokenKind::Lt, "<".to_string()),
+            Some('>') => Token::new(TokenKind::Gt, ">".to_string()),
             Some('{') => Token::new(TokenKind::Lbrace, "{".to_string()),
             Some('}') => Token::new(TokenKind::Rbrace, "}".to_string()),
             None => Token::new(TokenKind::Eof, "".to_string()),
@@ -140,6 +146,18 @@ mod tests {
             TestCase { expected_kind: TokenKind::Ident, expected_literal: "ten" },
             TestCase { expected_kind: TokenKind::Rparen, expected_literal: ")" },
             TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
+            TestCase { expected_kind: TokenKind::Bang, expected_literal: "!" },
+            TestCase { expected_kind: TokenKind::Minus, expected_literal: "-" },
+            TestCase { expected_kind: TokenKind::Slash, expected_literal: "/" },
+            TestCase { expected_kind: TokenKind::Asterisk, expected_literal: "*" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
+            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
+            TestCase { expected_kind: TokenKind::Lt, expected_literal: "<" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
+            TestCase { expected_kind: TokenKind::Gt, expected_literal: ">" },
+            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
+            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
             TestCase { expected_kind: TokenKind::Eof, expected_literal: "" },
         ];
 
@@ -149,7 +167,9 @@ mod tests {
             let add = fn(x, y) {
                 x + y;
             };
-            let result = add(five, ten);";
+            let result = add(five, ten);
+            !-/*5;
+            5 < 10 > 5;";
         let mut lexer = Lexer::new(input);
 
         for (i, test) in tests.iter().enumerate() {
