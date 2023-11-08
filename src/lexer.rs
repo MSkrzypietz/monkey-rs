@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use std::str::Chars;
-use crate::token::{lookup_ident, Token, TokenKind};
+use crate::token::{lookup_ident, Token};
 
 pub struct Lexer<'a> {
     chars: Peekable<Chars<'a>>,
@@ -25,41 +25,41 @@ impl<'a> Lexer<'a> {
                 match self.chars.peek() {
                     Some('=') => {
                         self.read_char();
-                        Token::new(TokenKind::Eq, "==".to_string())
+                        Token::Eq
                     }
-                    _ => Token::new(TokenKind::Assign, "=".to_string())
+                    _ => Token::Assign
                 }
             }
-            Some(';') => Token::new(TokenKind::Semicolon, ";".to_string()),
-            Some('(') => Token::new(TokenKind::Lparen, "(".to_string()),
-            Some(')') => Token::new(TokenKind::Rparen, ")".to_string()),
-            Some(',') => Token::new(TokenKind::Comma, ",".to_string()),
-            Some('+') => Token::new(TokenKind::Plus, "+".to_string()),
-            Some('-') => Token::new(TokenKind::Minus, "-".to_string()),
+            Some(';') => Token::Semicolon,
+            Some('(') => Token::Lparen,
+            Some(')') => Token::Rparen,
+            Some(',') => Token::Comma,
+            Some('+') => Token::Plus,
+            Some('-') => Token::Minus,
             Some('!') => {
                 match self.chars.peek() {
                     Some('=') => {
                         self.read_char();
-                        Token::new(TokenKind::Ne, "!=".to_string())
+                        Token::Ne
                     }
-                    _ => Token::new(TokenKind::Bang, "!".to_string())
+                    _ => Token::Bang
                 }
             }
-            Some('*') => Token::new(TokenKind::Asterisk, "*".to_string()),
-            Some('/') => Token::new(TokenKind::Slash, "/".to_string()),
-            Some('<') => Token::new(TokenKind::Lt, "<".to_string()),
-            Some('>') => Token::new(TokenKind::Gt, ">".to_string()),
-            Some('{') => Token::new(TokenKind::Lbrace, "{".to_string()),
-            Some('}') => Token::new(TokenKind::Rbrace, "}".to_string()),
-            None => Token::new(TokenKind::Eof, "".to_string()),
+            Some('*') => Token::Asterisk,
+            Some('/') => Token::Slash,
+            Some('<') => Token::Lt,
+            Some('>') => Token::Gt,
+            Some('{') => Token::Lbrace,
+            Some('}') => Token::Rbrace,
+            None => Token::Eof,
             Some(ch) => {
                 if Self::is_letter(ch) {
                     let ident = self.read_identifier();
-                    return Token::new(lookup_ident(&ident), ident);
+                    return lookup_ident(&ident);
                 } else if Self::is_digit(ch) {
-                    return Token::new(TokenKind::Int, self.read_number());
+                    return Token::Int(self.read_number());
                 } else {
-                    Token::new(TokenKind::Illegal, ch.to_string())
+                    Token::Illegal
                 }
             }
         };
@@ -114,92 +114,98 @@ impl<'a> Lexer<'a> {
     }
 }
 
+impl Iterator for Lexer<'_> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_token() {
+            Token::Eof => None,
+            token => Some(token)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::token::TokenKind;
+    use crate::token::Token;
     use super::*;
 
     #[test]
     fn test_next_token() {
-        struct TestCase {
-            expected_kind: TokenKind,
-            expected_literal: &'static str,
-        }
-        let tests: &[TestCase] = &[
-            TestCase { expected_kind: TokenKind::Let, expected_literal: "let" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "five" },
-            TestCase { expected_kind: TokenKind::Assign, expected_literal: "=" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Let, expected_literal: "let" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "ten" },
-            TestCase { expected_kind: TokenKind::Assign, expected_literal: "=" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Let, expected_literal: "let" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "add" },
-            TestCase { expected_kind: TokenKind::Assign, expected_literal: "=" },
-            TestCase { expected_kind: TokenKind::Function, expected_literal: "fn" },
-            TestCase { expected_kind: TokenKind::Lparen, expected_literal: "(" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "x" },
-            TestCase { expected_kind: TokenKind::Comma, expected_literal: "," },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "y" },
-            TestCase { expected_kind: TokenKind::Rparen, expected_literal: ")" },
-            TestCase { expected_kind: TokenKind::Lbrace, expected_literal: "{" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "x" },
-            TestCase { expected_kind: TokenKind::Plus, expected_literal: "+" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "y" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Rbrace, expected_literal: "}" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Let, expected_literal: "let" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "result" },
-            TestCase { expected_kind: TokenKind::Assign, expected_literal: "=" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "add" },
-            TestCase { expected_kind: TokenKind::Lparen, expected_literal: "(" },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "five" },
-            TestCase { expected_kind: TokenKind::Comma, expected_literal: "," },
-            TestCase { expected_kind: TokenKind::Ident, expected_literal: "ten" },
-            TestCase { expected_kind: TokenKind::Rparen, expected_literal: ")" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Bang, expected_literal: "!" },
-            TestCase { expected_kind: TokenKind::Minus, expected_literal: "-" },
-            TestCase { expected_kind: TokenKind::Slash, expected_literal: "/" },
-            TestCase { expected_kind: TokenKind::Asterisk, expected_literal: "*" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
-            TestCase { expected_kind: TokenKind::Lt, expected_literal: "<" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
-            TestCase { expected_kind: TokenKind::Gt, expected_literal: ">" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::If, expected_literal: "if" },
-            TestCase { expected_kind: TokenKind::Lparen, expected_literal: "(" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "5" },
-            TestCase { expected_kind: TokenKind::Lt, expected_literal: "<" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
-            TestCase { expected_kind: TokenKind::Rparen, expected_literal: ")" },
-            TestCase { expected_kind: TokenKind::Lbrace, expected_literal: "{" },
-            TestCase { expected_kind: TokenKind::Return, expected_literal: "return" },
-            TestCase { expected_kind: TokenKind::True, expected_literal: "true" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Rbrace, expected_literal: "}" },
-            TestCase { expected_kind: TokenKind::Else, expected_literal: "else" },
-            TestCase { expected_kind: TokenKind::Lbrace, expected_literal: "{" },
-            TestCase { expected_kind: TokenKind::Return, expected_literal: "return" },
-            TestCase { expected_kind: TokenKind::False, expected_literal: "false" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Rbrace, expected_literal: "}" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
-            TestCase { expected_kind: TokenKind::Eq, expected_literal: "==" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "10" },
-            TestCase { expected_kind: TokenKind::Ne, expected_literal: "!=" },
-            TestCase { expected_kind: TokenKind::Int, expected_literal: "9" },
-            TestCase { expected_kind: TokenKind::Semicolon, expected_literal: ";" },
-            TestCase { expected_kind: TokenKind::Eof, expected_literal: "" },
+        let expected_tokens: Vec<Token> = vec![
+            Token::Let,
+            Token::Ident("five".to_string()),
+            Token::Assign,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("ten".to_string()),
+            Token::Assign,
+            Token::Int("10".to_string()),
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("add".to_string()),
+            Token::Assign,
+            Token::Function,
+            Token::Lparen,
+            Token::Ident("x".to_string()),
+            Token::Comma,
+            Token::Ident("y".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Ident("x".to_string()),
+            Token::Plus,
+            Token::Ident("y".to_string()),
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Semicolon,
+            Token::Let,
+            Token::Ident("result".to_string()),
+            Token::Assign,
+            Token::Ident("add".to_string()),
+            Token::Lparen,
+            Token::Ident("five".to_string()),
+            Token::Comma,
+            Token::Ident("ten".to_string()),
+            Token::Rparen,
+            Token::Semicolon,
+            Token::Bang,
+            Token::Minus,
+            Token::Slash,
+            Token::Asterisk,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
+            Token::Int("5".to_string()),
+            Token::Lt,
+            Token::Int("10".to_string()),
+            Token::Gt,
+            Token::Int("5".to_string()),
+            Token::Semicolon,
+            Token::If,
+            Token::Lparen,
+            Token::Int("5".to_string()),
+            Token::Lt,
+            Token::Int("10".to_string()),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Int("10".to_string()),
+            Token::Eq,
+            Token::Int("10".to_string()),
+            Token::Semicolon,
+            Token::Int("10".to_string()),
+            Token::Ne,
+            Token::Int("9".to_string()),
+            Token::Semicolon,
         ];
 
         let input = "
@@ -218,12 +224,9 @@ mod tests {
             }
             10 == 10;
             10 != 9;";
-        let mut lexer = Lexer::new(input);
+        let lexer = Lexer::new(input);
+        let tokens = lexer.into_iter().collect::<Vec<Token>>();
 
-        for (i, test) in tests.iter().enumerate() {
-            let token = lexer.next_token();
-            assert_eq!(test.expected_kind, token.kind, "tests[{}] - token kind wrong. expected={:?}, got={:?}", i, test.expected_kind, token.kind);
-            assert_eq!(test.expected_literal, token.literal, "tests[{}] - literal wrong. expected={}, got={}", i, test.expected_literal, token.literal);
-        }
+        assert_eq!(expected_tokens, tokens);
     }
 }

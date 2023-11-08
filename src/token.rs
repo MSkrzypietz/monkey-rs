@@ -1,9 +1,9 @@
-#[derive(Debug, PartialEq)]
-pub enum TokenKind {
+#[derive(Debug, PartialEq, Clone)]
+pub enum Token {
     Illegal,
     Eof,
-    Ident,
-    Int,
+    Ident(String),
+    Int(String),
     Assign,
     Plus,
     Minus,
@@ -26,30 +26,18 @@ pub enum TokenKind {
     False,
     If,
     Else,
-    Return
+    Return,
 }
 
-#[derive(Debug)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub literal: String,
-}
-
-impl Token {
-    pub fn new(kind: TokenKind, literal: String) -> Self {
-        Self { kind, literal }
-    }
-}
-
-pub fn lookup_ident(ident: &str) -> TokenKind {
+pub fn lookup_ident(ident: &str) -> Token {
     match ident {
-        "fn" => TokenKind::Function,
-        "let" => TokenKind::Let,
-        "true" => TokenKind::True,
-        "false" => TokenKind::False,
-        "if" => TokenKind::If,
-        "else" => TokenKind::Else,
-        "return" => TokenKind::Return,
-        _ => TokenKind::Ident
+        "fn" => Token::Function,
+        "let" => Token::Let,
+        "true" => Token::True,
+        "false" => Token::False,
+        "if" => Token::If,
+        "else" => Token::Else,
+        "return" => Token::Return,
+        ident => Token::Ident(ident.to_string())
     }
 }
