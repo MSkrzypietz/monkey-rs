@@ -1,6 +1,5 @@
 use std::io::{BufReader, Result, Read, Write, BufRead};
 use crate::lexer::Lexer;
-use crate::token::Token;
 
 pub struct Repl {}
 
@@ -14,7 +13,7 @@ impl Repl {
 
             let mut input = String::new();
             reader.read_line(&mut input)?;
-            let mut lexer = Lexer::new(&input);
+            let lexer = Lexer::new(&input);
             for token in lexer {
                 writer.write_all(format!("{:?}\n", token).as_bytes())?;
             }
