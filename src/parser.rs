@@ -6,6 +6,7 @@ use crate::token::Token;
 pub struct Parser<'a> {
     lexer: Peekable<Lexer<'a>>,
     curr_token: Token,
+    errors: Vec<String>,
 }
 
 impl<'a> Parser<'a> {
@@ -13,9 +14,19 @@ impl<'a> Parser<'a> {
         let mut p = Self {
             lexer: lexer.peekable(),
             curr_token: Token::Eof,
+            errors: Vec::new(),
         };
         p.next_token();
         p
+    }
+
+    fn errors(&self) -> &[String] {
+        &self.errors
+    }
+
+    fn peek_error(&mut self, token: &Token) {
+        let msg = format!("expected next token to be {:?}, got {:?} instead", token, self.curr_token);
+        self.errors.push(msg);
     }
 
     fn next_token(&mut self) {
@@ -49,30 +60,31 @@ impl<'a> Parser<'a> {
         let ident = self.peek_ident()?;
         let stmt = Stmt::LetStmt(ident);
 
-        self.expect_peek(Token::Assign)?;
-        while !self.curr_token_is(Token::Semicolon) {
+        self.expect_peek(&Token::Assign)?;
+        while !self.curr_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
         Some(stmt)
     }
 
-    fn curr_token_is(&self, token: Token) -> bool {
-        self.curr_token == token
+    fn curr_token_is(&self, token: &Token) -> bool {
+        &self.curr_token == token
     }
 
-    fn peek_token_is(&mut self, token: Token) -> bool {
+    fn peek_token_is(&mut self, token: &Token) -> bool {
         match self.lexer.peek() {
-            Some(peek_token) => peek_token == &token,
+            Some(peek_token) => peek_token == token,
             None => false
         }
     }
 
-    fn expect_peek(&mut self, token: Token) -> Option<bool> {
+    fn expect_peek(&mut self, token: &Token) -> Option<bool> {
         if self.peek_token_is(token) {
             self.next_token();
             Some(true)
         } else {
+            self.peek_error(token);
             None
         }
     }
@@ -85,6 +97,8 @@ impl<'a> Parser<'a> {
 
         if ident.is_some() {
             self.next_token();
+        } else {
+            self.peek_error(&Token::Ident("".to_string()))
         }
 
         ident
@@ -114,6 +128,7 @@ mod test {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
+        assert_eq!(parser.errors().len(), 0);
         assert_eq!(program, expected_stmts);
     }
 }
