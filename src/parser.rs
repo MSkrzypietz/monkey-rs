@@ -1,5 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Ident, Program, Stmt};
+use crate::ast::Stmt::ReturnStmt;
 use crate::lexer::Lexer;
 use crate::token::Token;
 
@@ -52,6 +53,7 @@ impl<'a> Parser<'a> {
     fn parse_stmt(&mut self) -> Option<Stmt> {
         match &self.curr_token {
             Token::Let => self.parse_let_stmt(),
+            Token::Return => self.parse_return_stmt(),
             kind => panic!("unimplemented token kind: {:?}", kind)
         }
     }
@@ -66,6 +68,14 @@ impl<'a> Parser<'a> {
         }
 
         Some(stmt)
+    }
+
+    fn parse_return_stmt(&mut self) -> Option<Stmt> {
+        while !self.curr_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(ReturnStmt)
     }
 
     fn curr_token_is(&self, token: &Token) -> bool {
@@ -123,6 +133,25 @@ mod test {
             let x = 5;
             let y = 10;
             let foobar = 838383;";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_return_statements() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ReturnStmt,
+            ReturnStmt,
+        ];
+
+        let input = "
+            return 123;
+            return add;";
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);

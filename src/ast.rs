@@ -1,6 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum Stmt {
-    LetStmt(Ident)
+    LetStmt(Ident),
+    ReturnStmt
 }
 
 pub type Program = Vec<Stmt>;
