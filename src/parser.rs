@@ -1,8 +1,19 @@
 use std::iter::Peekable;
-use crate::ast::{Ident, Program, Stmt};
-use crate::ast::Stmt::ReturnStmt;
+use crate::ast::{Expr, Ident, Program, Stmt};
+use crate::ast::Expr::{IdentExpr, IntExpr};
+use crate::ast::Stmt::{ExprStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
+
+type Precedence = u8;
+
+const LOWEST: Precedence = 1;
+const EQUALS: Precedence = 2;
+const LESS_GREATER: Precedence = 3;
+const SUM: Precedence = 4;
+const PRODUCT: Precedence = 5;
+const PREFIX: Precedence = 6;
+const CALL: Precedence = 7;
 
 pub struct Parser<'a> {
     lexer: Peekable<Lexer<'a>>,
@@ -19,6 +30,14 @@ impl<'a> Parser<'a> {
         };
         p.next_token();
         p
+    }
+
+    fn execute_prefix(&mut self) -> Option<Expr> {
+        match self.curr_token {
+            Token::Ident(_) => self.parse_ident(),
+            Token::Int(_) => self.parse_int(),
+            _ => None
+        }
     }
 
     fn errors(&self) -> &[String] {
@@ -54,7 +73,7 @@ impl<'a> Parser<'a> {
         match &self.curr_token {
             Token::Let => self.parse_let_stmt(),
             Token::Return => self.parse_return_stmt(),
-            kind => panic!("unimplemented token kind: {:?}", kind)
+            _ => self.parse_expression_stmt()
         }
     }
 
@@ -76,6 +95,40 @@ impl<'a> Parser<'a> {
         }
 
         Some(ReturnStmt)
+    }
+
+    fn parse_expression_stmt(&mut self) -> Option<Stmt> {
+        let expr = self.parse_expression(LOWEST)?;
+        let stmt = ExprStmt(expr);
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(stmt)
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expr> {
+        self.execute_prefix()
+    }
+
+    fn parse_ident(&self) -> Option<Expr> {
+        match &self.curr_token {
+            Token::Ident(ident) => Some(IdentExpr(Ident(ident.clone()))),
+            _ => None
+        }
+    }
+
+    fn parse_int(&self) -> Option<Expr> {
+        match &self.curr_token {
+            Token::Int(x) => {
+                match x.parse::<i64>() {
+                    Ok(x) => Some(IntExpr(x)),
+                    Err(_) => None
+                }
+            },
+            _ => None
+        }
     }
 
     fn curr_token_is(&self, token: &Token) -> bool {
@@ -117,8 +170,9 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
+    use crate::ast::Expr::IntExpr;
     use crate::ast::Ident;
-    use crate::ast::Stmt::LetStmt;
+    use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
 
     #[test]
@@ -153,6 +207,24 @@ mod test {
             return 123;
             return add;";
 
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_expression_statements() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ExprStmt(IdentExpr(Ident("foobar".to_string()))),
+            ExprStmt(IntExpr(5))
+        ];
+
+        let input = "\
+            foobar;\
+            5;";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
