@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 pub enum Stmt {
     LetStmt(Ident),
     ReturnStmt,
-    ExprStmt(Expr)
+    ExprStmt(Expr),
 }
 
 impl Display for Stmt {
@@ -20,7 +20,14 @@ impl Display for Stmt {
 #[derive(Debug, PartialEq)]
 pub enum Expr {
     IdentExpr(Ident),
-    IntExpr(i64)
+    IntExpr(i64),
+    PrefixExpr(Prefix, Box<Expr>),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Prefix {
+    Minus,
+    Bang,
 }
 
 pub type Program = Vec<Stmt>;

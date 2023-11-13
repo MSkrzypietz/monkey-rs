@@ -1,6 +1,6 @@
 use std::iter::Peekable;
-use crate::ast::{Expr, Ident, Program, Stmt};
-use crate::ast::Expr::{IdentExpr, IntExpr};
+use crate::ast::{Expr, Ident, Prefix, Program, Stmt};
+use crate::ast::Expr::{IdentExpr, IntExpr, PrefixExpr};
 use crate::ast::Stmt::{ExprStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -36,6 +36,8 @@ impl<'a> Parser<'a> {
         match self.curr_token {
             Token::Ident(_) => self.parse_ident(),
             Token::Int(_) => self.parse_int(),
+            Token::Minus => self.parse_prefix_expression(),
+            Token::Bang => self.parse_prefix_expression(),
             _ => None
         }
     }
@@ -126,9 +128,20 @@ impl<'a> Parser<'a> {
                     Ok(x) => Some(IntExpr(x)),
                     Err(_) => None
                 }
-            },
+            }
             _ => None
         }
+    }
+
+    fn parse_prefix_expression(&mut self) -> Option<Expr> {
+        let prefix = match self.curr_token {
+            Token::Minus => Some(Prefix::Minus),
+            Token::Bang => Some(Prefix::Bang),
+            _ => None
+        }?;
+        self.next_token();
+        let expr = self.parse_expression(PREFIX)?;
+        Some(PrefixExpr(prefix, Box::new(expr)))
     }
 
     fn curr_token_is(&self, token: &Token) -> bool {
@@ -170,8 +183,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::IntExpr;
-    use crate::ast::Ident;
+    use crate::ast::Expr::{IntExpr, PrefixExpr};
+    use crate::ast::{Ident, Prefix};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
 
@@ -219,12 +232,16 @@ mod test {
     fn test_expression_statements() {
         let expected_stmts: Vec<Stmt> = vec![
             ExprStmt(IdentExpr(Ident("foobar".to_string()))),
-            ExprStmt(IntExpr(5))
+            ExprStmt(IntExpr(5)),
+            ExprStmt(PrefixExpr(Prefix::Bang, Box::new(IntExpr(5)))),
+            ExprStmt(PrefixExpr(Prefix::Minus, Box::new(IntExpr(15)))),
         ];
 
-        let input = "\
-            foobar;\
-            5;";
+        let input = "
+            foobar;
+            5;
+            !5;
+            -15;";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
