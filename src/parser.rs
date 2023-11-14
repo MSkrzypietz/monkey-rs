@@ -1,6 +1,6 @@
 use std::iter::Peekable;
-use crate::ast::{Expr, Ident, Prefix, Program, Stmt};
-use crate::ast::Expr::{IdentExpr, IntExpr, PrefixExpr};
+use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
+use crate::ast::Expr::{IdentExpr, InfixExpr, IntExpr, PrefixExpr};
 use crate::ast::Stmt::{ExprStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -14,6 +14,20 @@ const SUM: Precedence = 4;
 const PRODUCT: Precedence = 5;
 const PREFIX: Precedence = 6;
 const CALL: Precedence = 7;
+
+fn precedence(token: &Token) -> Option<Precedence> {
+    match token {
+        Token::Eq => Some(EQUALS),
+        Token::Ne => Some(EQUALS),
+        Token::Lt => Some(LESS_GREATER),
+        Token::Gt => Some(LESS_GREATER),
+        Token::Plus => Some(SUM),
+        Token::Minus => Some(SUM),
+        Token::Slash => Some(PRODUCT),
+        Token::Asterisk => Some(PRODUCT),
+        _ => None
+    }
+}
 
 pub struct Parser<'a> {
     lexer: Peekable<Lexer<'a>>,
@@ -39,6 +53,20 @@ impl<'a> Parser<'a> {
             Token::Minus => self.parse_prefix_expression(),
             Token::Bang => self.parse_prefix_expression(),
             _ => None
+        }
+    }
+
+    fn peek_infix_is(&mut self) -> bool {
+        match self.lexer.peek() {
+            Some(Token::Plus) => true,
+            Some(Token::Minus) => true,
+            Some(Token::Asterisk) => true,
+            Some(Token::Slash) => true,
+            Some(Token::Gt) => true,
+            Some(Token::Lt) => true,
+            Some(Token::Eq) => true,
+            Some(Token::Ne) => true,
+            _ => false
         }
     }
 
@@ -111,7 +139,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expr> {
-        self.execute_prefix()
+        let mut left = self.execute_prefix()?;
+
+        while !self.peek_token_is(&Token::Semicolon) && self.smaller_precedence(precedence) {
+            if !self.peek_infix_is() {
+                return Some(left);
+            }
+
+            self.next_token();
+            left = self.parse_infix_expression(left)?;
+        }
+
+        Some(left)
     }
 
     fn parse_ident(&self) -> Option<Expr> {
@@ -142,6 +181,39 @@ impl<'a> Parser<'a> {
         self.next_token();
         let expr = self.parse_expression(PREFIX)?;
         Some(PrefixExpr(prefix, Box::new(expr)))
+    }
+
+    fn parse_infix_expression(&mut self, left: Expr) -> Option<Expr> {
+        let infix = match self.curr_token {
+            Token::Plus => Some(Infix::Plus),
+            Token::Minus => Some(Infix::Minus),
+            Token::Asterisk => Some(Infix::Asterisk),
+            Token::Slash => Some(Infix::Slash),
+            Token::Gt => Some(Infix::Gt),
+            Token::Lt => Some(Infix::Lt),
+            Token::Eq => Some(Infix::Eq),
+            Token::Ne => Some(Infix::Ne),
+            _ => None
+        }?;
+        let precedence = self.curr_precedence()?;
+        self.next_token();
+        let expr = self.parse_expression(precedence)?;
+        Some(InfixExpr(infix, Box::new(left), Box::new(expr)))
+    }
+
+    fn smaller_precedence(&mut self, other: Precedence) -> bool {
+        match self.peek_precedence() {
+            Some(precedence) => other < precedence,
+            None => false
+        }
+    }
+
+    fn peek_precedence(&mut self) -> Option<Precedence> {
+        self.lexer.peek().iter().find_map(|token| precedence(token)).or(Some(LOWEST))
+    }
+
+    fn curr_precedence(&self) -> Option<Precedence> {
+        precedence(&self.curr_token).or(Some(LOWEST))
     }
 
     fn curr_token_is(&self, token: &Token) -> bool {
@@ -183,8 +255,8 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::{IntExpr, PrefixExpr};
-    use crate::ast::{Ident, Prefix};
+    use crate::ast::Expr::{InfixExpr, IntExpr, PrefixExpr};
+    use crate::ast::{Ident, Infix, Prefix};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
 
@@ -235,13 +307,30 @@ mod test {
             ExprStmt(IntExpr(5)),
             ExprStmt(PrefixExpr(Prefix::Bang, Box::new(IntExpr(5)))),
             ExprStmt(PrefixExpr(Prefix::Minus, Box::new(IntExpr(15)))),
+            ExprStmt(InfixExpr(Infix::Plus, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Minus, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Asterisk, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Slash, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Gt, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Lt, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Eq, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(InfixExpr(Infix::Ne, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
         ];
 
         let input = "
             foobar;
             5;
             !5;
-            -15;";
+            -15;
+            5 + 5;
+            5 - 5;
+            5 * 5;
+            5 / 5;
+            5 > 5;
+            5 < 5;
+            5 == 5;
+            5 != 5;
+            ";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();

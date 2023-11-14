@@ -17,22 +17,35 @@ impl Display for Stmt {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     IdentExpr(Ident),
     IntExpr(i64),
     PrefixExpr(Prefix, Box<Expr>),
+    InfixExpr(Infix, Box<Expr>, Box<Expr>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Prefix {
     Minus,
     Bang,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Infix {
+    Plus,
+    Minus,
+    Asterisk,
+    Slash,
+    Gt,
+    Lt,
+    Eq,
+    Ne
+}
+
 pub type Program = Vec<Stmt>;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Ident(pub String);
 
 impl PartialEq<Ident> for &str {
