@@ -54,6 +54,7 @@ impl<'a> Parser<'a> {
             Token::Bang => self.parse_prefix_expression(),
             Token::True => Some(BooleanExpr(true)),
             Token::False => Some(BooleanExpr(false)),
+            Token::Lparen => self.parse_grouped_expression(),
             _ => None
         }
     }
@@ -203,6 +204,15 @@ impl<'a> Parser<'a> {
         Some(InfixExpr(infix, Box::new(left), Box::new(expr)))
     }
 
+    fn parse_grouped_expression(&mut self) -> Option<Expr> {
+        self.next_token();
+        let expr = self.parse_expression(LOWEST);
+        match self.expect_peek(&Token::Rparen) {
+            Some(true) => expr,
+            _ => None,
+        }
+    }
+
     fn smaller_precedence(&mut self, other: Precedence) -> bool {
         match self.peek_precedence() {
             Some(precedence) => other < precedence,
@@ -337,8 +347,25 @@ mod test {
             5 != 5;
             true;
             false;
-            3 > 5 == false;
-            ";
+            3 > 5 == false;";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_operator_precedence() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ExprStmt(InfixExpr(Infix::Asterisk, Box::new(InfixExpr(Infix::Plus, Box::new(IntExpr(5)), Box::new(IntExpr(5)))), Box::new(IntExpr(2)))),
+            ExprStmt(PrefixExpr(Prefix::Bang, Box::new(InfixExpr(Infix::Eq, Box::new(BooleanExpr(true)), Box::new(BooleanExpr(false)))))),
+        ];
+
+        let input = "
+            (5 + 5) * 2;
+            !(true == false);";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
