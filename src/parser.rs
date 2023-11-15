@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
-use crate::ast::Expr::{IdentExpr, InfixExpr, IntExpr, PrefixExpr};
+use crate::ast::Expr::{BooleanExpr, IdentExpr, InfixExpr, IntExpr, PrefixExpr};
 use crate::ast::Stmt::{ExprStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -52,6 +52,8 @@ impl<'a> Parser<'a> {
             Token::Int(_) => self.parse_int(),
             Token::Minus => self.parse_prefix_expression(),
             Token::Bang => self.parse_prefix_expression(),
+            Token::True => Some(BooleanExpr(true)),
+            Token::False => Some(BooleanExpr(false)),
             _ => None
         }
     }
@@ -255,7 +257,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::{InfixExpr, IntExpr, PrefixExpr};
+    use crate::ast::Expr::{BooleanExpr, InfixExpr, IntExpr, PrefixExpr};
     use crate::ast::{Ident, Infix, Prefix};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
@@ -315,6 +317,9 @@ mod test {
             ExprStmt(InfixExpr(Infix::Lt, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
             ExprStmt(InfixExpr(Infix::Eq, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
             ExprStmt(InfixExpr(Infix::Ne, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
+            ExprStmt(BooleanExpr(true)),
+            ExprStmt(BooleanExpr(false)),
+            ExprStmt(InfixExpr(Infix::Eq, Box::new(InfixExpr(Infix::Gt, Box::new(IntExpr(3)), Box::new(IntExpr(5)))), Box::new(BooleanExpr(false)))),
         ];
 
         let input = "
@@ -330,6 +335,9 @@ mod test {
             5 < 5;
             5 == 5;
             5 != 5;
+            true;
+            false;
+            3 > 5 == false;
             ";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);

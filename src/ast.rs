@@ -23,6 +23,7 @@ pub enum Expr {
     IntExpr(i64),
     PrefixExpr(Prefix, Box<Expr>),
     InfixExpr(Infix, Box<Expr>, Box<Expr>),
+    BooleanExpr(bool)
 }
 
 #[derive(Debug, PartialEq, Clone)]
