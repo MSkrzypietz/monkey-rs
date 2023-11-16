@@ -29,6 +29,10 @@ pub enum Expr {
         consequence: Program,
         alternative: Program,
     },
+    FunctionLiteralExpr {
+        parameters: Vec<Ident>,
+        body: Program
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
-use crate::ast::Expr::{BooleanExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
+use crate::ast::Expr::{BooleanExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
 use crate::ast::Stmt::{ExprStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -48,14 +48,15 @@ impl<'a> Parser<'a> {
 
     fn execute_prefix(&mut self) -> Option<Expr> {
         match self.curr_token {
-            Token::Ident(_) => self.parse_ident(),
-            Token::Int(_) => self.parse_int(),
+            Token::Ident(_) => self.parse_ident_expression(),
+            Token::Int(_) => self.parse_int_expression(),
             Token::Minus => self.parse_prefix_expression(),
             Token::Bang => self.parse_prefix_expression(),
             Token::True => Some(BooleanExpr(true)),
             Token::False => Some(BooleanExpr(false)),
             Token::Lparen => self.parse_grouped_expression(),
             Token::If => self.parse_if_expression(),
+            Token::Function => self.parse_function_literal_expression(),
             _ => None
         }
     }
@@ -157,14 +158,21 @@ impl<'a> Parser<'a> {
         Some(left)
     }
 
-    fn parse_ident(&self) -> Option<Expr> {
+    fn parse_ident_expression(&self) -> Option<Expr> {
         match &self.curr_token {
             Token::Ident(ident) => Some(IdentExpr(Ident(ident.clone()))),
             _ => None
         }
     }
 
-    fn parse_int(&self) -> Option<Expr> {
+    fn parse_ident(&self) -> Option<Ident> {
+        match &self.curr_token {
+            Token::Ident(ident) => Some(Ident(ident.clone())),
+            _ => None
+        }
+    }
+
+    fn parse_int_expression(&self) -> Option<Expr> {
         match &self.curr_token {
             Token::Int(x) => {
                 match x.parse::<i64>() {
@@ -238,6 +246,36 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_function_literal_expression(&mut self) -> Option<Expr> {
+        self.expect_peek(&Token::Lparen)?;
+        let parameters = self.parse_function_parameters()?;
+
+        self.expect_peek(&Token::Lbrace)?;
+        let body = self.parse_block_statement()?;
+
+        Some(FunctionLiteralExpr { parameters, body })
+    }
+
+    fn parse_function_parameters(&mut self) -> Option<Vec<Ident>> {
+        let mut parameters: Vec<Ident> = vec![];
+        if self.peek_token_is(&Token::Rparen) {
+            self.next_token();
+            return Some(parameters);
+        }
+
+        self.next_token();
+        parameters.push(self.parse_ident()?);
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            parameters.push(self.parse_ident()?);
+        }
+
+        self.expect_peek(&Token::Rparen)?;
+        Some(parameters)
+    }
+
     fn parse_block_statement(&mut self) -> Option<Program> {
         self.next_token();
         let mut program: Program = Vec::new();
@@ -304,7 +342,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::{BooleanExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
+    use crate::ast::Expr::{BooleanExpr, FunctionLiteralExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
     use crate::ast::{Ident, Infix, Prefix};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
@@ -429,6 +467,31 @@ mod test {
         let input = "
             if (x < y) { x };
             if (x < y) { x } else { y };";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_function_literal_expressions() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ExprStmt(FunctionLiteralExpr {
+                parameters: vec![Ident("x".to_string()), Ident("y".to_string())],
+                body: vec![ExprStmt(InfixExpr(Infix::Plus, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IdentExpr(Ident("y".to_string())))))],
+            }),
+            ExprStmt(FunctionLiteralExpr { parameters: vec![], body: vec![] }),
+            ExprStmt(FunctionLiteralExpr { parameters: vec![Ident("x".to_string())], body: vec![] }),
+            ExprStmt(FunctionLiteralExpr { parameters: vec![Ident("x".to_string()), Ident("y".to_string()), Ident("z".to_string())], body: vec![] }),
+        ];
+
+        let input = "
+            fn(x, y) { x + y; }
+            fn() {}
+            fn(x) {}
+            fn(x, y, z) {}";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
