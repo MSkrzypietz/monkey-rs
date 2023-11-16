@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
-use crate::ast::Expr::{BooleanExpr, IdentExpr, InfixExpr, IntExpr, PrefixExpr};
+use crate::ast::Expr::{BooleanExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
 use crate::ast::Stmt::{ExprStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -55,6 +55,7 @@ impl<'a> Parser<'a> {
             Token::True => Some(BooleanExpr(true)),
             Token::False => Some(BooleanExpr(false)),
             Token::Lparen => self.parse_grouped_expression(),
+            Token::If => self.parse_if_expression(),
             _ => None
         }
     }
@@ -213,6 +214,42 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_if_expression(&mut self) -> Option<Expr> {
+        self.expect_peek(&Token::Lparen)?;
+        self.next_token();
+        let cond = self.parse_expression(LOWEST)?;
+        self.expect_peek(&Token::Rparen)?;
+
+        self.expect_peek(&Token::Lbrace)?;
+        let consequence = self.parse_block_statement().unwrap_or_default();
+
+        let alternative: Program = if self.peek_token_is(&Token::Else) {
+            self.next_token();
+            self.expect_peek(&Token::Lbrace)?;
+            self.parse_block_statement().unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+
+        Some(IfExpr {
+            cond: Box::new(cond),
+            consequence,
+            alternative,
+        })
+    }
+
+    fn parse_block_statement(&mut self) -> Option<Program> {
+        self.next_token();
+        let mut program: Program = Vec::new();
+        while !self.curr_token_is(&Token::Rbrace) && !self.curr_token_is(&Token::Eof) {
+            if let Some(stmt) = self.parse_stmt() {
+                program.push(stmt);
+            }
+            self.next_token()
+        }
+        Some(program)
+    }
+
     fn smaller_precedence(&mut self, other: Precedence) -> bool {
         match self.peek_precedence() {
             Some(precedence) => other < precedence,
@@ -267,7 +304,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::{BooleanExpr, InfixExpr, IntExpr, PrefixExpr};
+    use crate::ast::Expr::{BooleanExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
     use crate::ast::{Ident, Infix, Prefix};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
@@ -366,6 +403,32 @@ mod test {
         let input = "
             (5 + 5) * 2;
             !(true == false);";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_if_expressions() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ExprStmt(IfExpr {
+                cond: Box::new(InfixExpr(Infix::Lt, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IdentExpr(Ident("y".to_string()))))),
+                consequence: vec![ExprStmt(IdentExpr(Ident("x".to_string())))],
+                alternative: Vec::new(),
+            }),
+            ExprStmt(IfExpr {
+                cond: Box::new(InfixExpr(Infix::Lt, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IdentExpr(Ident("y".to_string()))))),
+                consequence: vec![ExprStmt(IdentExpr(Ident("x".to_string())))],
+                alternative: vec![ExprStmt(IdentExpr(Ident("y".to_string())))],
+            }),
+        ];
+
+        let input = "
+            if (x < y) { x };
+            if (x < y) { x } else { y };";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();

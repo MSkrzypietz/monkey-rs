@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
     LetStmt(Ident),
     ReturnStmt,
@@ -23,7 +23,12 @@ pub enum Expr {
     IntExpr(i64),
     PrefixExpr(Prefix, Box<Expr>),
     InfixExpr(Infix, Box<Expr>, Box<Expr>),
-    BooleanExpr(bool)
+    BooleanExpr(bool),
+    IfExpr {
+        cond: Box<Expr>,
+        consequence: Program,
+        alternative: Program,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -41,7 +46,7 @@ pub enum Infix {
     Gt,
     Lt,
     Eq,
-    Ne
+    Ne,
 }
 
 pub type Program = Vec<Stmt>;
