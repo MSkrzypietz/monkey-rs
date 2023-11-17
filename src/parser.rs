@@ -127,11 +127,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_stmt(&mut self) -> Option<Stmt> {
-        while !self.curr_token_is(&Token::Semicolon) {
+        self.next_token();
+        let expr = self.parse_expression(LOWEST)?;
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
-
-        Some(ReturnStmt)
+        Some(ReturnStmt(expr))
     }
 
     fn parse_expression_stmt(&mut self) -> Option<Stmt> {
@@ -410,12 +411,12 @@ mod test {
     #[test]
     fn test_return_statements() {
         let expected_stmts: Vec<Stmt> = vec![
-            ReturnStmt,
-            ReturnStmt,
+            ReturnStmt(IntExpr(123)),
+            ReturnStmt(IdentExpr(Ident("add".to_string()))),
         ];
 
         let input = "
-            return 123;
+            return 123
             return add;";
 
         let lexer = Lexer::new(input);

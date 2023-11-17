@@ -1,20 +1,10 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
     LetStmt(Ident),
-    ReturnStmt,
+    ReturnStmt(Expr),
     ExprStmt(Expr),
-}
-
-impl Display for Stmt {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Stmt::LetStmt(ident) => f.write_fmt(format_args!("let {:?} = ;", ident)),
-            Stmt::ReturnStmt => f.write_str("return ;"),
-            _ => f.write_str(";")
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
