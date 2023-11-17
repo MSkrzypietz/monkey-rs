@@ -31,8 +31,12 @@ pub enum Expr {
     },
     FunctionLiteralExpr {
         parameters: Vec<Ident>,
-        body: Program
-    }
+        body: Program,
+    },
+    FunctionCallExpr {
+        function: Box<Expr>,
+        arguments: Vec<Expr>,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
