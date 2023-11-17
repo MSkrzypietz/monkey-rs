@@ -1,8 +1,6 @@
-use std::fmt::{Display};
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Stmt {
-    LetStmt(Ident),
+    LetStmt(Ident, Expr),
     ReturnStmt(Expr),
     ExprStmt(Expr),
 }

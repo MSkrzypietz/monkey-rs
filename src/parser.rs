@@ -1,7 +1,7 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
 use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
-use crate::ast::Stmt::{ExprStmt, ReturnStmt};
+use crate::ast::Stmt::{ExprStmt, LetStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
 
@@ -116,14 +116,15 @@ impl<'a> Parser<'a> {
 
     fn parse_let_stmt(&mut self) -> Option<Stmt> {
         let ident = self.peek_ident()?;
-        let stmt = Stmt::LetStmt(ident);
-
         self.expect_peek(&Token::Assign)?;
-        while !self.curr_token_is(&Token::Semicolon) {
+        self.next_token();
+        let expr = self.parse_expression(LOWEST)?;
+
+        if !self.curr_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
-        Some(stmt)
+        Some(LetStmt(ident, expr))
     }
 
     fn parse_return_stmt(&mut self) -> Option<Stmt> {
@@ -390,15 +391,15 @@ mod test {
     #[test]
     fn test_let_statements() {
         let expected_stmts: Vec<Stmt> = vec![
-            LetStmt(Ident("x".to_string())),
-            LetStmt(Ident("y".to_string())),
-            LetStmt(Ident("foobar".to_string())),
+            LetStmt(Ident("x".to_string()), IntExpr(5)),
+            LetStmt(Ident("y".to_string()), IntExpr(10)),
+            LetStmt(Ident("foobar".to_string()), BooleanExpr(true)),
         ];
 
         let input = "
             let x = 5;
             let y = 10;
-            let foobar = 838383;";
+            let foobar = true;";
 
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
