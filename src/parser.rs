@@ -37,7 +37,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn new(lexer: Lexer<'a>) -> Self {
+    pub fn new(lexer: Lexer<'a>) -> Self {
         let mut p = Self {
             lexer: lexer.peekable(),
             curr_token: Token::Eof,
@@ -77,7 +77,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn errors(&self) -> &[String] {
+    pub fn errors(&self) -> &[String] {
         &self.errors
     }
 
@@ -93,8 +93,8 @@ impl<'a> Parser<'a> {
         };
     }
 
-    fn parse_program(&mut self) -> Program {
-        let mut prog: Program = Vec::new();
+    pub fn parse_program(&mut self) -> Program {
+        let mut prog = Vec::new();
 
         while self.curr_token != Token::Eof {
             if let Some(stmt) = self.parse_stmt() {
@@ -277,7 +277,7 @@ impl<'a> Parser<'a> {
             self.expect_peek(&Token::Lbrace)?;
             self.parse_block_statement().unwrap_or_default()
         } else {
-            Vec::new()
+            Program::default()
         };
 
         Some(IfExpr {
@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
 
     fn parse_block_statement(&mut self) -> Option<Program> {
         self.next_token();
-        let mut program: Program = Vec::new();
+        let mut program = Vec::new();
         while !self.curr_token_is(&Token::Rbrace) && !self.curr_token_is(&Token::Eof) {
             if let Some(stmt) = self.parse_stmt() {
                 program.push(stmt);
@@ -468,8 +468,7 @@ mod test {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert_eq!(parser.errors().len(), 0);
-        assert_eq!(program, expected_stmts);
+        assert_eq!(parser.errors().len(), 0); assert_eq!(program, expected_stmts);
     }
 
     #[test]
@@ -496,7 +495,7 @@ mod test {
             ExprStmt(IfExpr {
                 cond: Box::new(InfixExpr(Infix::Lt, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IdentExpr(Ident("y".to_string()))))),
                 consequence: vec![ExprStmt(IdentExpr(Ident("x".to_string())))],
-                alternative: Vec::new(),
+                alternative: vec![],
             }),
             ExprStmt(IfExpr {
                 cond: Box::new(InfixExpr(Infix::Lt, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IdentExpr(Ident("y".to_string()))))),
@@ -523,9 +522,9 @@ mod test {
                 parameters: vec![Ident("x".to_string()), Ident("y".to_string())],
                 body: vec![ExprStmt(InfixExpr(Infix::Plus, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IdentExpr(Ident("y".to_string())))))],
             }),
-            ExprStmt(FunctionLiteralExpr { parameters: vec![], body: vec![] }),
-            ExprStmt(FunctionLiteralExpr { parameters: vec![Ident("x".to_string())], body: vec![] }),
-            ExprStmt(FunctionLiteralExpr { parameters: vec![Ident("x".to_string()), Ident("y".to_string()), Ident("z".to_string())], body: vec![] }),
+            ExprStmt(FunctionLiteralExpr { parameters: vec![], body: Program::default() }),
+            ExprStmt(FunctionLiteralExpr { parameters: vec![Ident("x".to_string())], body: Program::default() }),
+            ExprStmt(FunctionLiteralExpr { parameters: vec![Ident("x".to_string()), Ident("y".to_string()), Ident("z".to_string())], body: Program::default() }),
         ];
 
         let input = "
