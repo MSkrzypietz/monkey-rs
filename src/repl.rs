@@ -1,21 +1,29 @@
 use std::io::{BufReader, Result, Read, Write, BufRead};
 use crate::lexer::Lexer;
+use crate::parser::Parser;
 
 pub struct Repl {}
 
 impl Repl {
-    pub fn start(reader: Box<dyn Read>, mut writer: Box<dyn Write>) -> Result<()> {
-        let mut reader = BufReader::new(reader);
+    pub fn start(r: Box<dyn Read>, mut w: Box<dyn Write>) -> Result<()> {
+        let mut reader = BufReader::new(r);
 
         loop {
-            writer.write_all(b">> ")?;
-            writer.flush()?;
+            write!(w, ">> ")?;
+            w.flush()?;
 
             let mut input = String::new();
             reader.read_line(&mut input)?;
             let lexer = Lexer::new(&input);
-            for token in lexer {
-                writer.write_all(format!("{:?}\n", token).as_bytes())?;
+            let mut parser = Parser::new(lexer);
+
+            for error in parser.errors() {
+                writeln!(w, "{}", error)?;
+            }
+
+            let program = parser.parse_program();
+            for stmt in program {
+                writeln!(w, "{}", stmt)?;
             }
         }
     }
