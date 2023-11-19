@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Program, Stmt};
+use crate::ast::{Expr, Prefix, Program, Stmt};
 use crate::object::Object;
 
 pub struct Evaluator {}
@@ -34,12 +34,37 @@ impl Evaluator {
         match expr {
             Expr::IdentExpr(_) => unimplemented!(),
             Expr::IntExpr(i) => Object::Integer(i),
-            Expr::PrefixExpr(_, _) => unimplemented!(),
+            Expr::PrefixExpr(prefix, expr) => {
+                let right = self.eval_expr(*expr);
+                self.eval_prefix_expr(prefix, right)
+            },
             Expr::InfixExpr(_, _, _) => unimplemented!(),
             Expr::BooleanExpr(b) => Object::Boolean(b),
             Expr::IfExpr { .. } => unimplemented!(),
             Expr::FunctionLiteralExpr { .. } => unimplemented!(),
             Expr::FunctionCallExpr { .. } => unimplemented!(),
+        }
+    }
+
+    fn eval_prefix_expr(&self, prefix: Prefix, right: Object) -> Object {
+        match prefix {
+            Prefix::Minus => self.eval_minus_prefix_operator(right),
+            Prefix::Bang => self.eval_bang_operator(right),
+        }
+    }
+
+    fn eval_minus_prefix_operator(&self, right: Object) -> Object {
+        match right {
+            Object::Integer(i) => Object::Integer(-i),
+            _ => Object::Null
+        }
+    }
+
+    fn eval_bang_operator(&self, right: Object) -> Object {
+        match right {
+            Object::Boolean(b) => Object::Boolean(!b),
+            Object::Null => Object::Boolean(true),
+            _ => Object::Boolean(false),
         }
     }
 }
@@ -62,15 +87,7 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_literals() {
-        let test_cases = vec![
-            TestCase::new("3", Object::Integer(3)),
-            TestCase::new("true", Object::Boolean(true)),
-            TestCase::new("false", Object::Boolean(false)),
-            TestCase::new("", Object::Null),
-        ];
-
+    fn test(test_cases: Vec<TestCase>) {
         for test_case in test_cases {
             let lexer = Lexer::new(test_case.input);
             let mut parser = Parser::new(lexer);
@@ -80,5 +97,33 @@ mod test {
 
             assert_eq!(obj, test_case.expected);
         }
+    }
+
+    #[test]
+    fn test_literals() {
+        let test_cases = vec![
+            TestCase::new("3", Object::Integer(3)),
+            TestCase::new("true", Object::Boolean(true)),
+            TestCase::new("false", Object::Boolean(false)),
+            TestCase::new("", Object::Null),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_prefix_operators() {
+        let test_cases = vec![
+            TestCase::new("!true", Object::Boolean(false)),
+            TestCase::new("!false", Object::Boolean(true)),
+            TestCase::new("!5", Object::Boolean(false)),
+            TestCase::new("!!true", Object::Boolean(true)),
+            TestCase::new("!!false", Object::Boolean(false)),
+            TestCase::new("!!5", Object::Boolean(true)),
+            TestCase::new("5", Object::Integer(5)),
+            TestCase::new("10", Object::Integer(10)),
+            TestCase::new("-5", Object::Integer(-5)),
+            TestCase::new("-10", Object::Integer(-10)),
+        ];
+        test(test_cases);
     }
 }
