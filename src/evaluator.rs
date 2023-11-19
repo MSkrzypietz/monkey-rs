@@ -9,15 +9,22 @@ impl Evaluator {
     }
 
     pub fn eval_program(&self, program: &mut Program) -> Object {
-        self.eval_block_stmt(program)
+        match self.eval_block_stmt(program) {
+            Object::Return(obj) => *obj,
+            obj => obj
+        }
     }
 
     fn eval_block_stmt(&self, program: &mut Program) -> Object {
         match program.len() {
             0 => Object::Null,
+            1 => self.eval_stmt(program.remove(0)),
             _ => {
                 let stmt = program.remove(0);
-                self.eval_stmt(stmt)
+                match self.eval_stmt(stmt) {
+                    Object::Return(obj) => *obj,
+                    _ => self.eval_block_stmt(program)
+                }
             }
         }
     }
@@ -25,7 +32,7 @@ impl Evaluator {
     fn eval_stmt(&self, stmt: Stmt) -> Object {
         match stmt {
             Stmt::LetStmt(_, _) => unimplemented!(),
-            Stmt::ReturnStmt(_) => unimplemented!(),
+            Stmt::ReturnStmt(expr) => Object::Return(Box::new(self.eval_expr(expr))),
             Stmt::ExprStmt(expr) => self.eval_expr(expr),
         }
     }
@@ -44,10 +51,10 @@ impl Evaluator {
                 self.eval_infix_expr(infix, left, right)
             }
             Expr::BooleanExpr(b) => Object::Boolean(b),
-            Expr::IfExpr {cond, consequence, alternative} => {
+            Expr::IfExpr { cond, consequence, alternative } => {
                 let cond = self.eval_expr(*cond);
                 self.eval_if_expr(cond, consequence, alternative)
-            },
+            }
             Expr::FunctionLiteralExpr { .. } => unimplemented!(),
             Expr::FunctionCallExpr { .. } => unimplemented!(),
         }
@@ -209,6 +216,24 @@ mod test {
             TestCase::new("if (1 > 2) { 10 }", Object::Null),
             TestCase::new("if (1 > 2) { 10 } else { 20 }", Object::Integer(20)),
             TestCase::new("if (1 < 2) { 10 } else { 20 }", Object::Integer(10)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_return_expressions() {
+        let test_cases = vec![
+            TestCase::new("return 10;", Object::Integer(10)),
+            TestCase::new("return 10; 9;", Object::Integer(10)),
+            TestCase::new("return 2 * 5; 9;", Object::Integer(10)),
+            TestCase::new("9; return 2 * 5; 9;", Object::Integer(10)),
+            TestCase::new("
+                if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+                    return 1;
+                }", Object::Integer(10)),
         ];
         test(test_cases);
     }
