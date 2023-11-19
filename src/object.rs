@@ -5,7 +5,20 @@ pub enum Object {
     Integer(i64),
     Boolean(bool),
     Return(Box<Object>),
+    Error(String),
     Null,
+}
+
+impl Object {
+    pub fn get_type(&self) -> String {
+        match self {
+            Object::Integer(_) => "INTEGER".to_string(),
+            Object::Boolean(_) => "BOOLEAN".to_string(),
+            Object::Return(_) => "RETURN".to_string(),
+            Object::Error(_) => "ERROR".to_string(),
+            Object::Null => "NULL".to_string(),
+        }
+    }
 }
 
 impl Display for Object {
@@ -14,6 +27,7 @@ impl Display for Object {
             Object::Integer(i) => write!(f, "{}", i),
             Object::Boolean(b) => write!(f, "{}", b),
             Object::Return(obj) => write!(f, "{}", obj),
+            Object::Error(err) => write!(f, "{}", err),
             Object::Null => write!(f, "null"),
         }
     }

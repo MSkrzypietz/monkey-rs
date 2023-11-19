@@ -23,6 +23,7 @@ impl Evaluator {
                 let stmt = program.remove(0);
                 match self.eval_stmt(stmt) {
                     Object::Return(obj) => *obj,
+                    Object::Error(err) => Object::Error(err),
                     _ => self.eval_block_stmt(program)
                 }
             }
@@ -70,7 +71,7 @@ impl Evaluator {
     fn eval_minus_prefix_operator(&self, right: Object) -> Object {
         match right {
             Object::Integer(i) => Object::Integer(-i),
-            _ => Object::Null
+            _ => Object::Error(format!("unknown operator: -{}", right.get_type()))
         }
     }
 
@@ -88,9 +89,9 @@ impl Evaluator {
             (Object::Boolean(l), Object::Boolean(r)) => return match infix {
                 Infix::Eq => Object::Boolean(l == r),
                 Infix::Ne => Object::Boolean(l != r),
-                _ => Object::Null,
+                _ => Object::Error(format!("unknown operator: {} {} {}", Object::Boolean(l).get_type(), infix, Object::Boolean(r).get_type())),
             },
-            _ => return Object::Null,
+            (l, r) => return Object::Error(format!("type mismatch: {} {} {}", l.get_type(), infix, r.get_type())),
         };
 
         match infix {
@@ -234,6 +235,26 @@ mod test {
                     }
                     return 1;
                 }", Object::Integer(10)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_error_handling() {
+        let test_cases = vec![
+            TestCase::new("5 + true;", Object::Error("type mismatch: INTEGER + BOOLEAN".to_string())),
+            TestCase::new("5 + true; 5;", Object::Error("type mismatch: INTEGER + BOOLEAN".to_string())),
+            TestCase::new("-true", Object::Error("unknown operator: -BOOLEAN".to_string())),
+            TestCase::new("true + false;", Object::Error("unknown operator: BOOLEAN + BOOLEAN".to_string())),
+            TestCase::new("5; true + false; 5", Object::Error("unknown operator: BOOLEAN + BOOLEAN".to_string())),
+            TestCase::new("if (10 > 1) { true + false; }", Object::Error("unknown operator: BOOLEAN + BOOLEAN".to_string())),
+            TestCase::new("
+                if (10 > 1) {
+                    if (10 > 1) {
+                        return true + false;
+                    }
+                    return 1;
+                }", Object::Error("unknown operator: BOOLEAN + BOOLEAN".to_string())),
         ];
         test(test_cases);
     }
