@@ -1,4 +1,5 @@
 use std::io::{BufReader, Result, Read, Write, BufRead};
+use crate::evaluator::Evaluator;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 
@@ -17,14 +18,14 @@ impl Repl {
             let lexer = Lexer::new(&input);
             let mut parser = Parser::new(lexer);
 
+            let mut program = parser.parse_program();
             for error in parser.errors() {
                 writeln!(w, "{}", error)?;
             }
 
-            let program = parser.parse_program();
-            for stmt in program {
-                writeln!(w, "{}", stmt)?;
-            }
+            let evaluator = Evaluator::new();
+            let evaluated = evaluator.eval_program(&mut program);
+            writeln!(w, "{}", evaluated)?;
         }
     }
 }
