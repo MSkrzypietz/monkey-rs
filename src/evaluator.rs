@@ -1,4 +1,4 @@
-use crate::ast::{Expr, Prefix, Program, Stmt};
+use crate::ast::{Expr, Infix, Prefix, Program, Stmt};
 use crate::object::Object;
 
 pub struct Evaluator {}
@@ -34,11 +34,15 @@ impl Evaluator {
         match expr {
             Expr::IdentExpr(_) => unimplemented!(),
             Expr::IntExpr(i) => Object::Integer(i),
-            Expr::PrefixExpr(prefix, expr) => {
-                let right = self.eval_expr(*expr);
+            Expr::PrefixExpr(prefix, right) => {
+                let right = self.eval_expr(*right);
                 self.eval_prefix_expr(prefix, right)
-            },
-            Expr::InfixExpr(_, _, _) => unimplemented!(),
+            }
+            Expr::InfixExpr(infix, left, right) => {
+                let left = self.eval_expr(*left);
+                let right = self.eval_expr(*right);
+                self.eval_infix_expr(infix, left, right)
+            }
             Expr::BooleanExpr(b) => Object::Boolean(b),
             Expr::IfExpr { .. } => unimplemented!(),
             Expr::FunctionLiteralExpr { .. } => unimplemented!(),
@@ -65,6 +69,29 @@ impl Evaluator {
             Object::Boolean(b) => Object::Boolean(!b),
             Object::Null => Object::Boolean(true),
             _ => Object::Boolean(false),
+        }
+    }
+
+    fn eval_infix_expr(&self, infix: Infix, left: Object, right: Object) -> Object {
+        let (left, right) = match (left, right) {
+            (Object::Integer(l), Object::Integer(r)) => (l, r),
+            (Object::Boolean(l), Object::Boolean(r)) => return match infix {
+                Infix::Eq => Object::Boolean(l == r),
+                Infix::Ne => Object::Boolean(l != r),
+                _ => Object::Null,
+            },
+            _ => return Object::Null,
+        };
+
+        match infix {
+            Infix::Plus => Object::Integer(left + right),
+            Infix::Minus => Object::Integer(left - right),
+            Infix::Asterisk => Object::Integer(left * right),
+            Infix::Slash => Object::Integer(left / right),
+            Infix::Gt => Object::Boolean(left > right),
+            Infix::Lt => Object::Boolean(left < right),
+            Infix::Eq => Object::Boolean(left == right),
+            Infix::Ne => Object::Boolean(left != right),
         }
     }
 }
@@ -123,6 +150,41 @@ mod test {
             TestCase::new("10", Object::Integer(10)),
             TestCase::new("-5", Object::Integer(-5)),
             TestCase::new("-10", Object::Integer(-10)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_infix_operators() {
+        let test_cases = vec![
+            TestCase::new("5 + 5 + 5 - 2", Object::Integer(13)),
+            TestCase::new("2 * 2 * 3", Object::Integer(12)),
+            TestCase::new("-50 + 100 + -50", Object::Integer(0)),
+            TestCase::new("5 * 2 + 10", Object::Integer(20)),
+            TestCase::new("5 + 2 * 10", Object::Integer(25)),
+            TestCase::new("20 + 2 * -10", Object::Integer(0)),
+            TestCase::new("50 / 2 * 2 + 10", Object::Integer(60)),
+            TestCase::new("2 * (5 + 10)", Object::Integer(30)),
+            TestCase::new("3 * 3 * 3 + 10", Object::Integer(37)),
+            TestCase::new("3 * (3 * 3) + 10", Object::Integer(37)),
+            TestCase::new("(5 + 10 * 2 + 15 / 3) * 2 + -10", Object::Integer(50)),
+            TestCase::new("1 < 2", Object::Boolean(true)),
+            TestCase::new("1 > 2", Object::Boolean(false)),
+            TestCase::new("1 < 1", Object::Boolean(false)),
+            TestCase::new("1 > 1", Object::Boolean(false)),
+            TestCase::new("1 == 1", Object::Boolean(true)),
+            TestCase::new("1 != 1", Object::Boolean(false)),
+            TestCase::new("1 == 2", Object::Boolean(false)),
+            TestCase::new("1 != 2", Object::Boolean(true)),
+            TestCase::new("true == true", Object::Boolean(true)),
+            TestCase::new("false == false", Object::Boolean(true)),
+            TestCase::new("true == false", Object::Boolean(false)),
+            TestCase::new("true != false", Object::Boolean(true)),
+            TestCase::new("false != true", Object::Boolean(true)),
+            TestCase::new("(1 < 2) == true", Object::Boolean(true)),
+            TestCase::new("(1 < 2) == false", Object::Boolean(false)),
+            TestCase::new("(1 > 2) == true", Object::Boolean(false)),
+            TestCase::new("(1 > 2) == false", Object::Boolean(true)),
         ];
         test(test_cases);
     }
