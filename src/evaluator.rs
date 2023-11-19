@@ -44,7 +44,10 @@ impl Evaluator {
                 self.eval_infix_expr(infix, left, right)
             }
             Expr::BooleanExpr(b) => Object::Boolean(b),
-            Expr::IfExpr { .. } => unimplemented!(),
+            Expr::IfExpr {cond, consequence, alternative} => {
+                let cond = self.eval_expr(*cond);
+                self.eval_if_expr(cond, consequence, alternative)
+            },
             Expr::FunctionLiteralExpr { .. } => unimplemented!(),
             Expr::FunctionCallExpr { .. } => unimplemented!(),
         }
@@ -92,6 +95,13 @@ impl Evaluator {
             Infix::Lt => Object::Boolean(left < right),
             Infix::Eq => Object::Boolean(left == right),
             Infix::Ne => Object::Boolean(left != right),
+        }
+    }
+
+    fn eval_if_expr(&self, cond: Object, mut consequence: Program, mut alternative: Program) -> Object {
+        match cond {
+            Object::Null | Object::Boolean(false) => self.eval_block_stmt(&mut alternative),
+            _ => self.eval_block_stmt(&mut consequence),
         }
     }
 }
@@ -185,6 +195,20 @@ mod test {
             TestCase::new("(1 < 2) == false", Object::Boolean(false)),
             TestCase::new("(1 > 2) == true", Object::Boolean(false)),
             TestCase::new("(1 > 2) == false", Object::Boolean(true)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_if_expressions() {
+        let test_cases = vec![
+            TestCase::new("if (true) { 10 }", Object::Integer(10)),
+            TestCase::new("if (false) { 10 }", Object::Null),
+            TestCase::new("if (1) { 10 }", Object::Integer(10)),
+            TestCase::new("if (1 < 2) { 10 }", Object::Integer(10)),
+            TestCase::new("if (1 > 2) { 10 }", Object::Null),
+            TestCase::new("if (1 > 2) { 10 } else { 20 }", Object::Integer(20)),
+            TestCase::new("if (1 < 2) { 10 } else { 20 }", Object::Integer(10)),
         ];
         test(test_cases);
     }
