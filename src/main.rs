@@ -8,6 +8,7 @@ mod ast;
 mod parser;
 mod object;
 mod evaluator;
+mod environment;
 
 fn main() {
     println!("Welcome to the monkey programming language cli!\n");

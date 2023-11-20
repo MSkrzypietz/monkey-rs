@@ -1,21 +1,24 @@
 use crate::ast::{Expr, Infix, Prefix, Program, Stmt};
+use crate::environment::Environment;
 use crate::object::Object;
 
-pub struct Evaluator {}
+pub struct Evaluator<'a> {
+    env: &'a mut Environment,
+}
 
-impl Evaluator {
-    pub fn new() -> Self {
-        Self {}
+impl<'a> Evaluator<'a> {
+    pub fn new(env: &'a mut Environment) -> Self {
+        Self { env }
     }
 
-    pub fn eval_program(&self, program: &mut Program) -> Object {
+    pub fn eval_program(&mut self, program: &mut Program) -> Object {
         match self.eval_block_stmt(program) {
             Object::Return(obj) => *obj,
             obj => obj
         }
     }
 
-    fn eval_block_stmt(&self, program: &mut Program) -> Object {
+    fn eval_block_stmt(&mut self, program: &mut Program) -> Object {
         match program.len() {
             0 => Object::Null,
             1 => self.eval_stmt(program.remove(0)),
@@ -30,17 +33,21 @@ impl Evaluator {
         }
     }
 
-    fn eval_stmt(&self, stmt: Stmt) -> Object {
+    fn eval_stmt(&mut self, stmt: Stmt) -> Object {
         match stmt {
-            Stmt::LetStmt(_, _) => unimplemented!(),
+            Stmt::LetStmt(ident, expr) => {
+                let val = self.eval_expr(expr);
+                self.env.set(ident.0, val);
+                Object::Null
+            },
             Stmt::ReturnStmt(expr) => Object::Return(Box::new(self.eval_expr(expr))),
             Stmt::ExprStmt(expr) => self.eval_expr(expr),
         }
     }
 
-    fn eval_expr(&self, expr: Expr) -> Object {
+    fn eval_expr(&mut self, expr: Expr) -> Object {
         match expr {
-            Expr::IdentExpr(_) => unimplemented!(),
+            Expr::IdentExpr(ident) => self.eval_identifier(ident.0),
             Expr::IntExpr(i) => Object::Integer(i),
             Expr::PrefixExpr(prefix, right) => {
                 let right = self.eval_expr(*right);
@@ -58,6 +65,13 @@ impl Evaluator {
             }
             Expr::FunctionLiteralExpr { .. } => unimplemented!(),
             Expr::FunctionCallExpr { .. } => unimplemented!(),
+        }
+    }
+
+    fn eval_identifier(&self, ident: String) -> Object {
+        match self.env.get(&ident) {
+            Some(val) => val,
+            None => Object::Error(format!("identifier not found: {}", &ident)),
         }
     }
 
@@ -106,7 +120,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_if_expr(&self, cond: Object, mut consequence: Program, mut alternative: Program) -> Object {
+    fn eval_if_expr(&mut self, cond: Object, mut consequence: Program, mut alternative: Program) -> Object {
         match cond {
             Object::Null | Object::Boolean(false) => self.eval_block_stmt(&mut alternative),
             _ => self.eval_block_stmt(&mut consequence),
@@ -137,7 +151,8 @@ mod test {
             let lexer = Lexer::new(test_case.input);
             let mut parser = Parser::new(lexer);
             let mut program = parser.parse_program();
-            let evaluator = Evaluator::new();
+            let mut env = Environment::new();
+            let mut evaluator = Evaluator::new(&mut env);
             let obj = evaluator.eval_program(&mut program);
 
             assert_eq!(obj, test_case.expected);
@@ -255,6 +270,18 @@ mod test {
                     }
                     return 1;
                 }", Object::Error("unknown operator: BOOLEAN + BOOLEAN".to_string())),
+            TestCase::new("foobar", Object::Error("identifier not found: foobar".to_string())),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_let_statements() {
+        let test_cases = vec![
+            TestCase::new("let a = 5; a;", Object::Integer(5)),
+            TestCase::new("let a = 5 * 5; a;", Object::Integer(25)),
+            TestCase::new("let a = 5; let b = a; b;", Object::Integer(5)),
+            TestCase::new("let a = 5; let b = a; let c = a + b + 5; c;", Object::Integer(15)),
         ];
         test(test_cases);
     }
