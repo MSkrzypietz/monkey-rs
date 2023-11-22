@@ -1,5 +1,4 @@
 use std::io::{BufReader, Result, Read, Write, BufRead};
-use crate::environment::Environment;
 use crate::evaluator::Evaluator;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
@@ -9,7 +8,7 @@ pub struct Repl {}
 impl Repl {
     pub fn start(r: Box<dyn Read>, mut w: Box<dyn Write>) -> Result<()> {
         let mut reader = BufReader::new(r);
-        let mut env = Environment::new();
+        let mut evaluator = Evaluator::new();
 
         loop {
             write!(w, ">> ")?;
@@ -25,7 +24,6 @@ impl Repl {
                 writeln!(w, "{}", error)?;
             }
 
-            let mut evaluator = Evaluator::new(&mut env);
             let evaluated = evaluator.eval_program(&mut program);
             writeln!(w, "{}", evaluated)?;
         }

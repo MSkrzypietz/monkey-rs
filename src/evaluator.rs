@@ -1,14 +1,16 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::ast::{Expr, Infix, Prefix, Program, Stmt};
 use crate::environment::Environment;
 use crate::object::Object;
 
-pub struct Evaluator<'a> {
-    env: &'a mut Environment,
+pub struct Evaluator {
+    env: Rc<RefCell<Environment>>,
 }
 
-impl<'a> Evaluator<'a> {
-    pub fn new(env: &'a mut Environment) -> Self {
-        Self { env }
+impl Evaluator {
+    pub fn new() -> Self {
+        Self { env: Rc::new(RefCell::new(Environment::new())) }
     }
 
     pub fn eval_program(&mut self, program: &mut Program) -> Object {
@@ -37,9 +39,9 @@ impl<'a> Evaluator<'a> {
         match stmt {
             Stmt::LetStmt(ident, expr) => {
                 let val = self.eval_expr(expr);
-                self.env.set(ident.0, val);
+                self.env.borrow_mut().set(ident.0, val);
                 Object::Null
-            },
+            }
             Stmt::ReturnStmt(expr) => Object::Return(Box::new(self.eval_expr(expr))),
             Stmt::ExprStmt(expr) => self.eval_expr(expr),
         }
@@ -69,7 +71,7 @@ impl<'a> Evaluator<'a> {
     }
 
     fn eval_identifier(&self, ident: String) -> Object {
-        match self.env.get(&ident) {
+        match self.env.borrow().get(&ident) {
             Some(val) => val,
             None => Object::Error(format!("identifier not found: {}", &ident)),
         }
@@ -151,8 +153,7 @@ mod test {
             let lexer = Lexer::new(test_case.input);
             let mut parser = Parser::new(lexer);
             let mut program = parser.parse_program();
-            let mut env = Environment::new();
-            let mut evaluator = Evaluator::new(&mut env);
+            let mut evaluator = Evaluator::new();
             let obj = evaluator.eval_program(&mut program);
 
             assert_eq!(obj, test_case.expected);
