@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::iter::zip;
 use std::rc::Rc;
 use crate::ast::{Expr, Infix, Prefix, Program, Stmt};
 use crate::environment::Environment;
@@ -9,8 +10,8 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    pub fn new() -> Self {
-        Self { env: Rc::new(RefCell::new(Environment::new())) }
+    pub fn new(env: Environment) -> Self {
+        Self { env: Rc::new(RefCell::new(env)) }
     }
 
     pub fn eval_program(&mut self, program: &mut Program) -> Object {
@@ -65,8 +66,8 @@ impl Evaluator {
                 let cond = self.eval_expr(*cond);
                 self.eval_if_expr(cond, consequence, alternative)
             }
-            Expr::FunctionLiteralExpr { .. } => unimplemented!(),
-            Expr::FunctionCallExpr { .. } => unimplemented!(),
+            Expr::FunctionLiteralExpr { parameters, body } => Object::Function(parameters, body, Rc::clone(&self.env)),
+            Expr::FunctionCallExpr { arguments, function } => self.eval_function_call(arguments, function),
         }
     }
 
@@ -128,10 +129,30 @@ impl Evaluator {
             _ => self.eval_block_stmt(&mut consequence),
         }
     }
+
+    fn eval_function_call(&mut self, arguments: Vec<Expr>, function: Box<Expr>) -> Object {
+        let function = self.eval_expr(*function);
+        let args = arguments.into_iter().map(|arg| self.eval_expr(arg)).collect();
+        self.apply_function(function, args)
+    }
+
+    fn apply_function(&self, function: Object, args: Vec<Object>) -> Object {
+        match function {
+            Object::Function(parameters, mut program, env) => {
+                let mut extended_env = Environment::new_enclosed(Rc::clone(&env));
+                zip(parameters, args).into_iter().for_each(|(parameter, arg)| extended_env.set(parameter.0, arg));
+                Evaluator::new(extended_env).eval_program(&mut program)
+            }
+            _ => Object::Error(format!("not a function: {}", function.get_type()))
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::ast::Expr::{IdentExpr, InfixExpr, IntExpr};
+    use crate::ast::Ident;
+    use crate::ast::Stmt::ExprStmt;
     use crate::lexer::Lexer;
     use crate::object::Object;
     use crate::parser::Parser;
@@ -153,7 +174,8 @@ mod test {
             let lexer = Lexer::new(test_case.input);
             let mut parser = Parser::new(lexer);
             let mut program = parser.parse_program();
-            let mut evaluator = Evaluator::new();
+            let env = Environment::new();
+            let mut evaluator = Evaluator::new(env);
             let obj = evaluator.eval_program(&mut program);
 
             assert_eq!(obj, test_case.expected);
@@ -283,6 +305,46 @@ mod test {
             TestCase::new("let a = 5 * 5; a;", Object::Integer(25)),
             TestCase::new("let a = 5; let b = a; b;", Object::Integer(5)),
             TestCase::new("let a = 5; let b = a; let c = a + b + 5; c;", Object::Integer(15)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_function_object() {
+        let test_cases = vec![
+            TestCase::new(
+                "fn(x) { x + 2; };",
+                Object::Function(
+                    vec![Ident("x".to_string())],
+                    vec![ExprStmt(InfixExpr(Infix::Plus, Box::new(IdentExpr(Ident("x".to_string()))), Box::new(IntExpr(2))))],
+                    Rc::new(RefCell::new(Environment::new()))),
+            )
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_function_application() {
+        let test_cases = vec![
+            TestCase::new("let identity = fn(x) { x; }; identity(5);", Object::Integer(5)),
+            TestCase::new("let identity = fn(x) { return x; }; identity(5);", Object::Integer(5)),
+            TestCase::new("let double = fn(x) { x * 2; }; double(5);", Object::Integer(10)),
+            TestCase::new("let add = fn(x, y) { x + y; }; add(5, 5);", Object::Integer(10)),
+            TestCase::new("let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", Object::Integer(20)),
+            TestCase::new("fn(x) { x; }(5)", Object::Integer(5)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_closures() {
+        let test_cases = vec![
+            TestCase::new("
+                let newAdder = fn(x) {
+                    fn(y) { x + y };
+                };
+                let addTwo = newAdder(2);
+                addTwo(2);", Object::Integer(4)),
         ];
         test(test_cases);
     }

@@ -1,10 +1,15 @@
+use std::cell::RefCell;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
+use crate::ast::{Ident, Program};
+use crate::environment::Environment;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     Integer(i64),
     Boolean(bool),
     Return(Box<Object>),
+    Function(Vec<Ident>, Program, Rc<RefCell<Environment>>),
     Error(String),
     Null,
 }
@@ -15,6 +20,7 @@ impl Object {
             Object::Integer(_) => "INTEGER".to_string(),
             Object::Boolean(_) => "BOOLEAN".to_string(),
             Object::Return(_) => "RETURN".to_string(),
+            Object::Function(_, _, _) => "FUNCTION".to_string(),
             Object::Error(_) => "ERROR".to_string(),
             Object::Null => "NULL".to_string(),
         }
@@ -27,6 +33,7 @@ impl Display for Object {
             Object::Integer(i) => write!(f, "{}", i),
             Object::Boolean(b) => write!(f, "{}", b),
             Object::Return(obj) => write!(f, "{}", obj),
+            Object::Function(_, _, _) => unimplemented!(),
             Object::Error(err) => write!(f, "{}", err),
             Object::Null => write!(f, "null"),
         }
