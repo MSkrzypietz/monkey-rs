@@ -51,6 +51,10 @@ impl<'a> Lexer<'a> {
             Some('>') => Token::Gt,
             Some('{') => Token::Lbrace,
             Some('}') => Token::Rbrace,
+            Some('"') => {
+                self.read_char();
+                Token::String(self.read_string())
+            }
             None => Token::Eof,
             Some(ch) => {
                 if Self::is_letter(ch) {
@@ -74,6 +78,10 @@ impl<'a> Lexer<'a> {
 
     fn read_number(&mut self) -> String {
         self.read_while(Self::is_digit)
+    }
+
+    fn read_string(&mut self) -> String {
+        self.read_while(|ch| ch != '"')
     }
 
     fn read_while<F>(&mut self, predicate: F) -> String
@@ -206,6 +214,10 @@ mod tests {
             Token::Ne,
             Token::Int("9".to_string()),
             Token::Semicolon,
+            Token::String("foobar".to_string()),
+            Token::Semicolon,
+            Token::String("foo bar".to_string()),
+            Token::Semicolon,
         ];
 
         let input = "
@@ -223,7 +235,9 @@ mod tests {
                 return false;
             }
             10 == 10;
-            10 != 9;";
+            10 != 9;
+            \"foobar\";
+            \"foo bar\";";
         let lexer = Lexer::new(input);
         let tokens = lexer.into_iter().collect::<Vec<Token>>();
 

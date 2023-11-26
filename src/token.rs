@@ -4,6 +4,7 @@ pub enum Token {
     Eof,
     Ident(String),
     Int(String),
+    String(String),
     Assign,
     Plus,
     Minus,
