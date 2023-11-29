@@ -23,6 +23,10 @@ pub enum Expr {
     IntExpr(i64),
     StringExpr(String),
     ArrayExpr(Vec<Expr>),
+    IndexExpr {
+        left: Box<Expr>,
+        index: Box<Expr>,
+    },
     PrefixExpr(Prefix, Box<Expr>),
     InfixExpr(Infix, Box<Expr>, Box<Expr>),
     BooleanExpr(bool),
@@ -58,6 +62,7 @@ impl Display for Expr {
                 write!(f, "]")?;
                 Ok(())
             }
+            Expr::IndexExpr {left, index} => write!(f, "({}[{}])", left, index),
             Expr::PrefixExpr(prefix, expr) => write!(f, "{}{}", prefix, expr),
             Expr::InfixExpr(infix, left, right) => write!(f, "({} {} {})", left, infix, right),
             Expr::BooleanExpr(b) => write!(f, "{}", b),

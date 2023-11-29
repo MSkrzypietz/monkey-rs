@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
-use crate::ast::Expr::{ArrayExpr, BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
+use crate::ast::Expr::{ArrayExpr, BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, IndexExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
 use crate::ast::Stmt::{ExprStmt, LetStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -14,6 +14,7 @@ const SUM: Precedence = 4;
 const PRODUCT: Precedence = 5;
 const PREFIX: Precedence = 6;
 const CALL: Precedence = 7;
+const INDEX: Precedence = 8;
 
 fn precedence(token: &Token) -> Option<Precedence> {
     match token {
@@ -26,6 +27,7 @@ fn precedence(token: &Token) -> Option<Precedence> {
         Token::Slash => Some(PRODUCT),
         Token::Asterisk => Some(PRODUCT),
         Token::Lparen => Some(CALL),
+        Token::Lbracket => Some(INDEX),
         _ => None
     }
 }
@@ -75,6 +77,7 @@ impl<'a> Parser<'a> {
             Some(Token::Eq) => true,
             Some(Token::Ne) => true,
             Some(Token::Lparen) => true,
+            Some(Token::Lbracket) => true,
             _ => false
         }
     }
@@ -218,9 +221,8 @@ impl<'a> Parser<'a> {
             Token::Lt => Some(Infix::Lt),
             Token::Eq => Some(Infix::Eq),
             Token::Ne => Some(Infix::Ne),
-            Token::Lparen => {
-                return self.parse_function_call_expression(left);
-            }
+            Token::Lparen => return self.parse_function_call_expression(left),
+            Token::Lbracket => return self.parse_array_index_expression(left),
             _ => None
         }?;
         let precedence = self.curr_precedence()?;
@@ -231,6 +233,15 @@ impl<'a> Parser<'a> {
 
     fn parse_function_call_expression(&mut self, function: Expr) -> Option<Expr> {
         Some(FunctionCallExpr { function: Box::new(function), arguments: self.parse_expression_list(Token::Rparen) })
+    }
+
+    fn parse_array_index_expression(&mut self, left: Expr) -> Option<Expr> {
+        self.next_token();
+        let index = self.parse_expression(LOWEST)?;
+        if self.expect_peek(&Token::Rbracket).is_none() {
+            return None;
+        }
+        Some(IndexExpr { left: Box::new(left), index: Box::new(index) })
     }
 
     fn parse_array_literal(&mut self) -> Option<Expr> {
@@ -397,7 +408,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod test {
     use crate::ast::{Ident, Infix, Prefix};
-    use crate::ast::Expr::{ArrayExpr, BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
+    use crate::ast::Expr::{ArrayExpr, BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IfExpr, IndexExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
 
     use super::*;
@@ -595,6 +606,24 @@ mod test {
         ];
 
         let input = "[1, 2 * 2, 3 + 3]";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_index_expressions() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ExprStmt(IndexExpr {
+                left: Box::new(IdentExpr(Ident("myArray".to_string()))),
+                index: Box::new(InfixExpr(Infix::Plus, Box::new(IntExpr(1)), Box::new(IntExpr(1)))),
+            })
+        ];
+
+        let input = "myArray[1 + 1]";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();

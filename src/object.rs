@@ -8,6 +8,7 @@ use crate::environment::Environment;
 pub enum Object {
     Integer(i64),
     String(String),
+    Array(Vec<Object>),
     Boolean(bool),
     Return(Box<Object>),
     Function(Vec<Ident>, Program, Rc<RefCell<Environment>>),
@@ -21,6 +22,7 @@ impl Object {
         match self {
             Object::Integer(_) => "INTEGER".to_string(),
             Object::String(_) => "STRING".to_string(),
+            Object::Array(_) => "ARRAY".to_string(),
             Object::Boolean(_) => "BOOLEAN".to_string(),
             Object::Return(_) => "RETURN".to_string(),
             Object::Function(_, _, _) => "FUNCTION".to_string(),
@@ -36,6 +38,7 @@ impl Display for Object {
         match self {
             Object::Integer(i) => write!(f, "{}", i),
             Object::String(str) => write!(f, "{}", str),
+            Object::Array(_) => unimplemented!(),
             Object::Boolean(b) => write!(f, "{}", b),
             Object::Return(obj) => write!(f, "{}", obj),
             Object::Function(_, _, _) => unimplemented!(),
