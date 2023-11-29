@@ -52,6 +52,7 @@ impl Evaluator {
         match expr {
             Expr::IdentExpr(ident) => self.eval_identifier(ident.0),
             Expr::IntExpr(i) => Object::Integer(i),
+            Expr::StringExpr(str) => Object::String(str),
             Expr::PrefixExpr(prefix, right) => {
                 let right = self.eval_expr(*right);
                 self.eval_prefix_expr(prefix, right)
@@ -188,6 +189,7 @@ mod test {
             TestCase::new("3", Object::Integer(3)),
             TestCase::new("true", Object::Boolean(true)),
             TestCase::new("false", Object::Boolean(false)),
+            TestCase::new("\"Hello World!\"", Object::String("Hello World!".to_string())),
             TestCase::new("", Object::Null),
         ];
         test(test_cases);

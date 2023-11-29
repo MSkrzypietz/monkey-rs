@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
-use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
+use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
 use crate::ast::Stmt::{ExprStmt, LetStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -51,6 +51,7 @@ impl<'a> Parser<'a> {
         match self.curr_token {
             Token::Ident(_) => self.parse_ident_expression(),
             Token::Int(_) => self.parse_int_expression(),
+            Token::String(_) => self.parse_string_expression(),
             Token::Minus => self.parse_prefix_expression(),
             Token::Bang => self.parse_prefix_expression(),
             Token::True => Some(BooleanExpr(true)),
@@ -184,6 +185,13 @@ impl<'a> Parser<'a> {
                     Err(_) => None
                 }
             }
+            _ => None
+        }
+    }
+
+    fn parse_string_expression(&self) -> Option<Expr> {
+        match &self.curr_token {
+            Token::String(str) => Some(StringExpr(str.clone())),
             _ => None
         }
     }
@@ -383,7 +391,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr};
+    use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
     use crate::ast::{Ident, Infix, Prefix};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
     use super::*;
@@ -433,6 +441,7 @@ mod test {
         let expected_stmts: Vec<Stmt> = vec![
             ExprStmt(IdentExpr(Ident("foobar".to_string()))),
             ExprStmt(IntExpr(5)),
+            ExprStmt(StringExpr("hello world".to_string())),
             ExprStmt(PrefixExpr(Prefix::Bang, Box::new(IntExpr(5)))),
             ExprStmt(PrefixExpr(Prefix::Minus, Box::new(IntExpr(15)))),
             ExprStmt(InfixExpr(Infix::Plus, Box::new(IntExpr(5)), Box::new(IntExpr(5)))),
@@ -451,6 +460,7 @@ mod test {
         let input = "
             foobar;
             5;
+            \"hello world\";
             !5;
             -15;
             5 + 5;

@@ -21,6 +21,7 @@ impl Display for Stmt {
 pub enum Expr {
     IdentExpr(Ident),
     IntExpr(i64),
+    StringExpr(String),
     PrefixExpr(Prefix, Box<Expr>),
     InfixExpr(Infix, Box<Expr>, Box<Expr>),
     BooleanExpr(bool),
@@ -44,6 +45,7 @@ impl Display for Expr {
         match self {
             Expr::IdentExpr(ident) => write!(f, "{}", ident),
             Expr::IntExpr(n) => write!(f, "{}", n),
+            Expr::StringExpr(str) => write!(f, "{}", str),
             Expr::PrefixExpr(prefix, expr) => write!(f, "{}{}", prefix, expr),
             Expr::InfixExpr(infix, left, right) => write!(f, "({} {} {})", left, infix, right),
             Expr::BooleanExpr(b) => write!(f, "{}", b),
