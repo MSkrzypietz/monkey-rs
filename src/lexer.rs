@@ -51,6 +51,8 @@ impl<'a> Lexer<'a> {
             Some('>') => Token::Gt,
             Some('{') => Token::Lbrace,
             Some('}') => Token::Rbrace,
+            Some('[') => Token::Lbracket,
+            Some(']') => Token::Rbracket,
             Some('"') => {
                 self.read_char();
                 Token::String(self.read_string())
@@ -218,6 +220,12 @@ mod tests {
             Token::Semicolon,
             Token::String("foo bar".to_string()),
             Token::Semicolon,
+            Token::Lbracket,
+            Token::Int("1".to_string()),
+            Token::Comma,
+            Token::Int("2".to_string()),
+            Token::Rbracket,
+            Token::Semicolon,
         ];
 
         let input = "
@@ -237,7 +245,8 @@ mod tests {
             10 == 10;
             10 != 9;
             \"foobar\";
-            \"foo bar\";";
+            \"foo bar\";
+            [1, 2];";
         let lexer = Lexer::new(input);
         let tokens = lexer.into_iter().collect::<Vec<Token>>();
 

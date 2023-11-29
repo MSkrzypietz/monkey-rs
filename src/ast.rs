@@ -22,6 +22,7 @@ pub enum Expr {
     IdentExpr(Ident),
     IntExpr(i64),
     StringExpr(String),
+    ArrayExpr(Vec<Expr>),
     PrefixExpr(Prefix, Box<Expr>),
     InfixExpr(Infix, Box<Expr>, Box<Expr>),
     BooleanExpr(bool),
@@ -46,6 +47,17 @@ impl Display for Expr {
             Expr::IdentExpr(ident) => write!(f, "{}", ident),
             Expr::IntExpr(n) => write!(f, "{}", n),
             Expr::StringExpr(str) => write!(f, "{}", str),
+            Expr::ArrayExpr(elements) => {
+                write!(f, "[")?;
+                if let Some(first_arg) = elements.get(0) {
+                    write!(f, "{}", first_arg)?;
+                }
+                for arg in elements.iter().skip(1) {
+                    write!(f, ", {}", arg)?;
+                }
+                write!(f, "]")?;
+                Ok(())
+            }
             Expr::PrefixExpr(prefix, expr) => write!(f, "{}{}", prefix, expr),
             Expr::InfixExpr(infix, left, right) => write!(f, "({} {} {})", left, infix, right),
             Expr::BooleanExpr(b) => write!(f, "{}", b),

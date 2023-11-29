@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 use crate::ast::{Expr, Ident, Infix, Prefix, Program, Stmt};
-use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
+use crate::ast::Expr::{ArrayExpr, BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IdentExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
 use crate::ast::Stmt::{ExprStmt, LetStmt, ReturnStmt};
 use crate::lexer::Lexer;
 use crate::token::Token;
@@ -57,6 +57,7 @@ impl<'a> Parser<'a> {
             Token::True => Some(BooleanExpr(true)),
             Token::False => Some(BooleanExpr(false)),
             Token::Lparen => self.parse_grouped_expression(),
+            Token::Lbracket => self.parse_array_literal(),
             Token::If => self.parse_if_expression(),
             Token::Function => self.parse_function_literal_expression(),
             _ => None
@@ -229,37 +230,41 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_function_call_expression(&mut self, function: Expr) -> Option<Expr> {
-        Some(FunctionCallExpr { function: Box::new(function), arguments: self.parse_function_call_arguments() })
+        Some(FunctionCallExpr { function: Box::new(function), arguments: self.parse_expression_list(Token::Rparen) })
     }
 
-    fn parse_function_call_arguments(&mut self) -> Vec<Expr> {
-        let mut arguments: Vec<Expr> = vec![];
+    fn parse_array_literal(&mut self) -> Option<Expr> {
+        Some(ArrayExpr(self.parse_expression_list(Token::Rbracket)))
+    }
 
-        if self.peek_token_is(&Token::Rparen) {
+    fn parse_expression_list(&mut self, end: Token) -> Vec<Expr> {
+        let mut list: Vec<Expr> = vec![];
+
+        if self.peek_token_is(&end) {
             self.next_token();
-            return arguments;
+            return list;
         }
 
         self.next_token();
         if let Some(expr) = self.parse_expression(LOWEST) {
-            arguments.push(expr);
+            list.push(expr);
         } else {
-            return arguments;
+            return list;
         }
 
         while self.peek_token_is(&Token::Comma) {
             self.next_token();
             self.next_token();
             if let Some(expr) = self.parse_expression(LOWEST) {
-                arguments.push(expr);
+                list.push(expr);
             }
         }
 
-        if self.expect_peek(&Token::Rparen).is_none() {
+        if self.expect_peek(&end).is_none() {
             return Vec::new();
         }
 
-        arguments
+        list
     }
 
     fn parse_grouped_expression(&mut self) -> Option<Expr> {
@@ -391,9 +396,10 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::Expr::{BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
     use crate::ast::{Ident, Infix, Prefix};
+    use crate::ast::Expr::{ArrayExpr, BooleanExpr, FunctionCallExpr, FunctionLiteralExpr, IfExpr, InfixExpr, IntExpr, PrefixExpr, StringExpr};
     use crate::ast::Stmt::{ExprStmt, LetStmt};
+
     use super::*;
 
     #[test]
@@ -478,7 +484,8 @@ mod test {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert_eq!(parser.errors().len(), 0); assert_eq!(program, expected_stmts);
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
     }
 
     #[test]
@@ -569,6 +576,25 @@ mod test {
         let input = "
             add(1, 2 * 3, 4 + 5);
             add(1, add(2, 3) + 3);";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert_eq!(parser.errors().len(), 0);
+        assert_eq!(program, expected_stmts);
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let expected_stmts: Vec<Stmt> = vec![
+            ExprStmt(ArrayExpr(vec![
+                IntExpr(1),
+                InfixExpr(Infix::Asterisk, Box::new(IntExpr(2)), Box::new(IntExpr(2))),
+                InfixExpr(Infix::Plus, Box::new(IntExpr(3)), Box::new(IntExpr(3))),
+            ]))
+        ];
+
+        let input = "[1, 2 * 2, 3 + 3]";
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
