@@ -75,7 +75,20 @@ impl Evaluator {
     fn eval_identifier(&self, ident: String) -> Object {
         match self.env.borrow().get(&ident) {
             Some(val) => val,
-            None => Object::Error(format!("identifier not found: {}", &ident)),
+            None => match ident.as_str() {
+                "len" => Object::Builtin(Self::builtin_len),
+                _ => Object::Error(format!("identifier not found: {}", ident)),
+            }
+        }
+    }
+
+    fn builtin_len(args: &[Object]) -> Object {
+        match args {
+            [arg] => return match arg {
+                Object::String(str) => Object::Integer(str.len() as i64),
+                _ => Object::Error(format!("argument to `len` not supported, got {}", arg.get_type()))
+            },
+            _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
         }
     }
 
@@ -146,8 +159,9 @@ impl Evaluator {
             Object::Function(parameters, mut program, env) => {
                 let mut extended_env = Environment::new_enclosed(Rc::clone(&env));
                 zip(parameters, args).into_iter().for_each(|(parameter, arg)| extended_env.set(parameter.0, arg));
-                Evaluator::new(extended_env).eval_program(&mut program)
+                Self::new(extended_env).eval_program(&mut program)
             }
+            Object::Builtin(func) => func(args.as_slice()),
             _ => Object::Error(format!("not a function: {}", function.get_type()))
         }
     }
@@ -360,6 +374,19 @@ mod test {
     fn test_string_concat() {
         let test_cases = vec![
             TestCase::new("\"Hello\" + \" \" + \"World!\"", Object::String("Hello World!".to_string())),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_builtin_functions() {
+        let test_cases = vec![
+            TestCase::new("\"Hello\" + \" \" + \"World!\"", Object::String("Hello World!".to_string())),
+            TestCase::new("len(\"\")", Object::Integer(0)),
+            TestCase::new("len(\"four\")", Object::Integer(4)),
+            TestCase::new("len(\"hello world\")", Object::Integer(11)),
+            TestCase::new("len(1)", Object::Error("argument to `len` not supported, got INTEGER".to_string())),
+            TestCase::new("len(\"one\", \"two\")", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
         ];
         test(test_cases);
     }

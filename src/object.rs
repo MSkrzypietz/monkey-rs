@@ -11,6 +11,7 @@ pub enum Object {
     Boolean(bool),
     Return(Box<Object>),
     Function(Vec<Ident>, Program, Rc<RefCell<Environment>>),
+    Builtin(fn(&[Object]) -> Object),
     Error(String),
     Null,
 }
@@ -23,6 +24,7 @@ impl Object {
             Object::Boolean(_) => "BOOLEAN".to_string(),
             Object::Return(_) => "RETURN".to_string(),
             Object::Function(_, _, _) => "FUNCTION".to_string(),
+            Object::Builtin(_) => "BUILTIN".to_string(),
             Object::Error(_) => "ERROR".to_string(),
             Object::Null => "NULL".to_string(),
         }
@@ -37,6 +39,7 @@ impl Display for Object {
             Object::Boolean(b) => write!(f, "{}", b),
             Object::Return(obj) => write!(f, "{}", obj),
             Object::Function(_, _, _) => unimplemented!(),
+            Object::Builtin(_) => unimplemented!(),
             Object::Error(err) => write!(f, "{}", err),
             Object::Null => write!(f, "null"),
         }
