@@ -53,6 +53,12 @@ impl Evaluator {
             Expr::IdentExpr(ident) => self.eval_identifier(ident.0),
             Expr::IntExpr(i) => Object::Integer(i),
             Expr::StringExpr(str) => Object::String(str),
+            Expr::ArrayExpr(elements) => self.eval_array_literal(elements),
+            Expr::IndexExpr { left, index } => {
+                let left = self.eval_expr(*left);
+                let index = self.eval_expr(*index);
+                self.eval_index_expr(left, index)
+            },
             Expr::PrefixExpr(prefix, right) => {
                 let right = self.eval_expr(*right);
                 self.eval_prefix_expr(prefix, right)
@@ -89,6 +95,18 @@ impl Evaluator {
                 _ => Object::Error(format!("argument to `len` not supported, got {}", arg.get_type()))
             },
             _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
+        }
+    }
+
+    fn eval_index_expr(&self, left: Object, index: Object) -> Object {
+        match (left.clone(), index) {
+            (Object::Array(elements), Object::Integer(i)) => {
+                match elements.get(i as usize) {
+                    Some(element) => element.clone(),
+                    None => Object::Null
+                }
+            },
+            _ => Object::Error(format!("index operator not supported: {}", left.get_type()))
         }
     }
 
@@ -150,8 +168,16 @@ impl Evaluator {
 
     fn eval_function_call(&mut self, arguments: Vec<Expr>, function: Box<Expr>) -> Object {
         let function = self.eval_expr(*function);
-        let args = arguments.into_iter().map(|arg| self.eval_expr(arg)).collect();
+        let args = self.eval_expression_list(arguments);
         self.apply_function(function, args)
+    }
+
+    fn eval_array_literal(&mut self, elements: Vec<Expr>) -> Object {
+        Object::Array(self.eval_expression_list(elements))
+    }
+
+    fn eval_expression_list(&mut self, list: Vec<Expr>) -> Vec<Object> {
+        list.into_iter().map(|el| self.eval_expr(el)).collect()
     }
 
     fn apply_function(&self, function: Object, args: Vec<Object>) -> Object {
@@ -387,6 +413,31 @@ mod test {
             TestCase::new("len(\"hello world\")", Object::Integer(11)),
             TestCase::new("len(1)", Object::Error("argument to `len` not supported, got INTEGER".to_string())),
             TestCase::new("len(\"one\", \"two\")", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let test_cases = vec![
+            TestCase::new("[1, 2 * 2, 3 + 3]", Object::Array(vec![Object::Integer(1), Object::Integer(4), Object::Integer(6)]))
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_array_index_expressions() {
+        let test_cases = vec![
+            TestCase::new("[1, 2, 3][0]", Object::Integer(1)),
+            TestCase::new("[1, 2, 3][1]", Object::Integer(2)),
+            TestCase::new("[1, 2, 3][2]", Object::Integer(3)),
+            TestCase::new("let i = 0; [1][i];", Object::Integer(1)),
+            TestCase::new("[1, 2, 3][1 + 1];", Object::Integer(3)),
+            TestCase::new("let myArray = [1, 2, 3]; myArray[2];", Object::Integer(3)),
+            TestCase::new("let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];", Object::Integer(6)),
+            TestCase::new("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", Object::Integer(2)),
+            TestCase::new("[1, 2, 3][3]", Object::Null),
+            TestCase::new("[1, 2, 3][-1]",Object::Null)
         ];
         test(test_cases);
     }
