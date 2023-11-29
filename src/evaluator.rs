@@ -104,6 +104,10 @@ impl Evaluator {
     fn eval_infix_expr(&self, infix: Infix, left: Object, right: Object) -> Object {
         let (left, right) = match (left, right) {
             (Object::Integer(l), Object::Integer(r)) => (l, r),
+            (Object::String(l), Object::String(r)) => return match infix {
+                Infix::Plus => Object::String(l + &r),
+                _ => Object::Error(format!("unknown operator: {} {} {}", Object::String(l).get_type(), infix, Object::String(r).get_type()))
+            },
             (Object::Boolean(l), Object::Boolean(r)) => return match infix {
                 Infix::Eq => Object::Boolean(l == r),
                 Infix::Ne => Object::Boolean(l != r),
@@ -296,6 +300,7 @@ mod test {
                     return 1;
                 }", Object::Error("unknown operator: BOOLEAN + BOOLEAN".to_string())),
             TestCase::new("foobar", Object::Error("identifier not found: foobar".to_string())),
+            TestCase::new("\"Hello\" - \"World\"", Object::Error("unknown operator: STRING - STRING".to_string())),
         ];
         test(test_cases);
     }
@@ -347,6 +352,14 @@ mod test {
                 };
                 let addTwo = newAdder(2);
                 addTwo(2);", Object::Integer(4)),
+        ];
+        test(test_cases);
+    }
+
+    #[test]
+    fn test_string_concat() {
+        let test_cases = vec![
+            TestCase::new("\"Hello\" + \" \" + \"World!\"", Object::String("Hello World!".to_string())),
         ];
         test(test_cases);
     }
