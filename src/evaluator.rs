@@ -86,6 +86,7 @@ impl Evaluator {
                 "first" => Object::Builtin(Self::builtin_first),
                 "last" => Object::Builtin(Self::builtin_last),
                 "rest" => Object::Builtin(Self::builtin_rest),
+                "push" => Object::Builtin(Self::builtin_push),
                 _ => Object::Error(format!("identifier not found: {}", ident)),
             }
         }
@@ -130,6 +131,20 @@ impl Evaluator {
                 _ => Object::Error(format!("argument to `rest` must be ARRAY, got {}", arg.get_type()))
             },
             _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
+        }
+    }
+
+    fn builtin_push(args: &[Object]) -> Object {
+        match args {
+            [array, element] => return match array {
+                Object::Array(elements) => {
+                    let mut elements = elements.to_vec();
+                    elements.push(element.clone());
+                    Object::Array(elements)
+                },
+                _ => Object::Error(format!("argument to `push` must be ARRAY, got {}", array.get_type()))
+            },
+            _ => Object::Error(format!("wrong number of arguments. got={}, want=2", args.len()))
         }
     }
 
@@ -466,6 +481,11 @@ mod test {
             TestCase::new("rest([1, 2])", Object::Array(vec![Object::Integer(2)])),
             TestCase::new("rest([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
             TestCase::new("rest(1)", Object::Error("argument to `rest` must be ARRAY, got INTEGER".to_string())),
+            TestCase::new("let a = [1]; push(a, [])", Object::Array(vec![Object::Integer(1), Object::Array(vec![])])),
+            TestCase::new("let a = [1]; push(a, 2)", Object::Array(vec![Object::Integer(1), Object::Integer(2)])),
+            TestCase::new("let a = []; push(a, \"test\")", Object::Array(vec![Object::String("test".to_string())])),
+            TestCase::new("push([], 1, 2)", Object::Error("wrong number of arguments. got=3, want=2".to_string())),
+            TestCase::new("push(1, 1)", Object::Error("argument to `push` must be ARRAY, got INTEGER".to_string())),
         ];
         test(test_cases);
     }
