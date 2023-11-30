@@ -83,6 +83,7 @@ impl Evaluator {
             Some(val) => val,
             None => match ident.as_str() {
                 "len" => Object::Builtin(Self::builtin_len),
+                "first" => Object::Builtin(Self::builtin_first),
                 _ => Object::Error(format!("identifier not found: {}", ident)),
             }
         }
@@ -94,6 +95,16 @@ impl Evaluator {
                 Object::String(str) => Object::Integer(str.len() as i64),
                 Object::Array(elements) => Object::Integer(elements.len() as i64),
                 _ => Object::Error(format!("argument to `len` not supported, got {}", arg.get_type()))
+            },
+            _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
+        }
+    }
+
+    fn builtin_first(args: &[Object]) -> Object {
+        match args {
+            [arg] => return match arg {
+                Object::Array(elements) => elements.get(0).cloned().unwrap_or(Object::Null),
+                _ => Object::Error(format!("argument to `first` must be ARRAY, got {}", arg.get_type()))
             },
             _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
         }
@@ -417,6 +428,10 @@ mod test {
             TestCase::new("len([])", Object::Integer(0)),
             TestCase::new("len([1, 2, 3])", Object::Integer(3)),
             TestCase::new("len([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
+            TestCase::new("first([])", Object::Null),
+            TestCase::new("first([1])", Object::Integer(1)),
+            TestCase::new("first([1, 2])", Object::Integer(1)),
+            TestCase::new("first([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
         ];
         test(test_cases);
     }
