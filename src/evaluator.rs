@@ -92,6 +92,7 @@ impl Evaluator {
         match args {
             [arg] => return match arg {
                 Object::String(str) => Object::Integer(str.len() as i64),
+                Object::Array(elements) => Object::Integer(elements.len() as i64),
                 _ => Object::Error(format!("argument to `len` not supported, got {}", arg.get_type()))
             },
             _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
@@ -413,6 +414,9 @@ mod test {
             TestCase::new("len(\"hello world\")", Object::Integer(11)),
             TestCase::new("len(1)", Object::Error("argument to `len` not supported, got INTEGER".to_string())),
             TestCase::new("len(\"one\", \"two\")", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
+            TestCase::new("len([])", Object::Integer(0)),
+            TestCase::new("len([1, 2, 3])", Object::Integer(3)),
+            TestCase::new("len([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
         ];
         test(test_cases);
     }
