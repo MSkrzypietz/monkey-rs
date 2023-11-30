@@ -85,6 +85,7 @@ impl Evaluator {
                 "len" => Object::Builtin(Self::builtin_len),
                 "first" => Object::Builtin(Self::builtin_first),
                 "last" => Object::Builtin(Self::builtin_last),
+                "rest" => Object::Builtin(Self::builtin_rest),
                 _ => Object::Error(format!("identifier not found: {}", ident)),
             }
         }
@@ -102,18 +103,31 @@ impl Evaluator {
     }
 
     fn builtin_first(args: &[Object]) -> Object {
-        Self::builtin_array_get(args, |l| l.get(0))
+        Self::builtin_array_get(args, "first", |l| l.get(0))
     }
 
     fn builtin_last(args: &[Object]) -> Object {
-        Self::builtin_array_get(args, |l| l.last())
+        Self::builtin_array_get(args, "last", |l| l.last())
     }
 
-    fn builtin_array_get(args: &[Object], get_element: fn(&Vec<Object>)->Option<&Object>) -> Object {
+    fn builtin_array_get(args: &[Object], builtin_name: &str, get_element: fn(&Vec<Object>) -> Option<&Object>) -> Object {
         match args {
             [arg] => return match arg {
                 Object::Array(elements) => get_element(elements).cloned().unwrap_or(Object::Null),
-                _ => Object::Error(format!("argument to `first` must be ARRAY, got {}", arg.get_type()))
+                _ => Object::Error(format!("argument to `{}` must be ARRAY, got {}", builtin_name, arg.get_type()))
+            },
+            _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
+        }
+    }
+
+    fn builtin_rest(args: &[Object]) -> Object {
+        match args {
+            [arg] => return match arg {
+                Object::Array(elements) => return match elements.as_slice() {
+                    &[] => Object::Null,
+                    &[ref _first, ref rest @ ..] => Object::Array(rest.to_vec()),
+                },
+                _ => Object::Error(format!("argument to `rest` must be ARRAY, got {}", arg.get_type()))
             },
             _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
         }
@@ -447,6 +461,11 @@ mod test {
             TestCase::new("last([1, 2])", Object::Integer(2)),
             TestCase::new("last([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
             TestCase::new("last(1)", Object::Error("argument to `last` must be ARRAY, got INTEGER".to_string())),
+            TestCase::new("rest([])", Object::Null),
+            TestCase::new("rest([1])", Object::Array(vec![])),
+            TestCase::new("rest([1, 2])", Object::Array(vec![Object::Integer(2)])),
+            TestCase::new("rest([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
+            TestCase::new("rest(1)", Object::Error("argument to `rest` must be ARRAY, got INTEGER".to_string())),
         ];
         test(test_cases);
     }
