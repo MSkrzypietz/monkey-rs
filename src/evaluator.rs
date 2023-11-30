@@ -58,7 +58,7 @@ impl Evaluator {
                 let left = self.eval_expr(*left);
                 let index = self.eval_expr(*index);
                 self.eval_index_expr(left, index)
-            },
+            }
             Expr::PrefixExpr(prefix, right) => {
                 let right = self.eval_expr(*right);
                 self.eval_prefix_expr(prefix, right)
@@ -84,6 +84,7 @@ impl Evaluator {
             None => match ident.as_str() {
                 "len" => Object::Builtin(Self::builtin_len),
                 "first" => Object::Builtin(Self::builtin_first),
+                "last" => Object::Builtin(Self::builtin_last),
                 _ => Object::Error(format!("identifier not found: {}", ident)),
             }
         }
@@ -101,9 +102,17 @@ impl Evaluator {
     }
 
     fn builtin_first(args: &[Object]) -> Object {
+        Self::builtin_array_get(args, |l| l.get(0))
+    }
+
+    fn builtin_last(args: &[Object]) -> Object {
+        Self::builtin_array_get(args, |l| l.last())
+    }
+
+    fn builtin_array_get(args: &[Object], get_element: fn(&Vec<Object>)->Option<&Object>) -> Object {
         match args {
             [arg] => return match arg {
-                Object::Array(elements) => elements.get(0).cloned().unwrap_or(Object::Null),
+                Object::Array(elements) => get_element(elements).cloned().unwrap_or(Object::Null),
                 _ => Object::Error(format!("argument to `first` must be ARRAY, got {}", arg.get_type()))
             },
             _ => Object::Error(format!("wrong number of arguments. got={}, want=1", args.len()))
@@ -117,7 +126,7 @@ impl Evaluator {
                     Some(element) => element.clone(),
                     None => Object::Null
                 }
-            },
+            }
             _ => Object::Error(format!("index operator not supported: {}", left.get_type()))
         }
     }
@@ -431,7 +440,13 @@ mod test {
             TestCase::new("first([])", Object::Null),
             TestCase::new("first([1])", Object::Integer(1)),
             TestCase::new("first([1, 2])", Object::Integer(1)),
+            TestCase::new("first(1)", Object::Error("argument to `first` must be ARRAY, got INTEGER".to_string())),
             TestCase::new("first([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
+            TestCase::new("last([])", Object::Null),
+            TestCase::new("last([1])", Object::Integer(1)),
+            TestCase::new("last([1, 2])", Object::Integer(2)),
+            TestCase::new("last([], [])", Object::Error("wrong number of arguments. got=2, want=1".to_string())),
+            TestCase::new("last(1)", Object::Error("argument to `last` must be ARRAY, got INTEGER".to_string())),
         ];
         test(test_cases);
     }
@@ -456,7 +471,7 @@ mod test {
             TestCase::new("let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];", Object::Integer(6)),
             TestCase::new("let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", Object::Integer(2)),
             TestCase::new("[1, 2, 3][3]", Object::Null),
-            TestCase::new("[1, 2, 3][-1]",Object::Null)
+            TestCase::new("[1, 2, 3][-1]", Object::Null),
         ];
         test(test_cases);
     }
